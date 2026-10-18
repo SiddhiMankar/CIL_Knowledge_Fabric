@@ -1,0 +1,105 @@
+{
+  "project": "CIL Integrated Predictive Maintenance & AI Planning",
+  "tasks": ["Task 3", "Task 4", "Task 5", "Task 6", "Task 7", "Task 8"],
+  "dataset_spec": {
+    "filename": "ai4i2020.csv",
+    "rows": 10000,
+    "columns": 14,
+    "target": "Machine failure",
+    "regression_target": "Tool wear [min]"
+  },
+  "task3_planning_benchmarks": {
+    "equipment": "P-101",
+    "fault": "Suspected Bearing Wear",
+    "algorithms": {
+      "BFS": {
+        "solution_found": true,
+        "actions_count": 7,
+        "path_cost": 14,
+        "nodes_expanded": 16,
+        "execution_time_sec": 0.00017
+      },
+      "DFS": {
+        "solution_found": true,
+        "actions_count": 8,
+        "path_cost": 15,
+        "nodes_expanded": 9,
+        "execution_time_sec": 0.00008
+      },
+      "A*": {
+        "solution_found": true,
+        "actions_count": 7,
+        "path_cost": 14,
+        "nodes_expanded": 9,
+        "execution_time_sec": 0.00014
+      }
+    },
+    "optimal_plan": [
+      "Inspect Bearing",
+      "Confirm Bearing Wear",
+      "Replace Bearing",
+      "Run Vibration Test",
+      "Run Temperature Test",
+      "Test Pump",
+      "Restore Pump Operation"
+    ]
+  },
+  "task5_classical_ml_benchmarks": {
+    "test_split_ratio": 0.2,
+    "models": {
+      "Random Forest": {
+        "accuracy": 0.9840,
+        "notes": "Top performing classifier in notebook CIL456"
+      },
+      "Decision Tree": {
+        "accuracy": 0.9790,
+        "max_depth": 5
+      },
+      "SVM (RBF kernel)": {
+        "accuracy": 0.9760
+      },
+      "Logistic Regression": {
+        "accuracy": 0.9735
+      }
+    },
+    "clustering": {
+      "kmeans_clusters": 3,
+      "features": ["Rotational speed [rpm]", "Torque [Nm]"]
+    }
+  },
+  "task6_regression_benchmarks": {
+    "model": "Linear Regression",
+    "target": "Tool wear [min]",
+    "mse": 1.0554,
+    "r2_score": -0.0015,
+    "observation": "R2 near zero indicates tool wear cannot be linearly predicted from instantaneous operating conditions alone."
+  },
+  "task7_cnn_benchmarks": {
+    "architecture": "1D CNN (Conv1D 32 -> BatchNorm -> MaxPool -> Conv1D 64 -> BatchNorm -> GlobalAvgPool -> Dense 64 -> Dropout 0.5 -> Dense 1)",
+    "cnn_metrics": {
+      "accuracy": 0.966,
+      "precision": 0.500,
+      "recall": 0.647,
+      "f1_score": 0.564,
+      "roc_auc": 0.980,
+      "pr_auc": 0.580
+    },
+    "baseline_logistic_regression_metrics": {
+      "accuracy": 0.824,
+      "precision": 0.142,
+      "recall": 0.824,
+      "f1_score": 0.242,
+      "roc_auc": 0.900,
+      "pr_auc": 0.450
+    }
+  },
+  "task8_interpretability_benchmarks": {
+    "methods": ["Conv1D Layer Activation Maps", "LIME Tabular Explainer"],
+    "diagnostic_cases": {
+      "TN": {"index": 1, "actual": 0, "predicted": 0, "probability": 0.0000, "label": "True Negative (Normal)"},
+      "TP": {"index": 21, "actual": 1, "predicted": 1, "probability": 0.9999, "label": "True Positive (Failure)"},
+      "FP": {"index": 0, "actual": 0, "predicted": 1, "probability": 0.6847, "label": "False Positive"},
+      "FN": {"index": 17, "actual": 1, "predicted": 0, "probability": 0.0316, "label": "False Negative"}
+    }
+  }
+}
