@@ -61,7 +61,7 @@ try:
     import torch.optim as optim
     from torch.utils.data import TensorDataset, DataLoader
     HAS_TORCH = True
-except ImportError:
+except (ImportError, OSError):
     HAS_TORCH = False
 
 

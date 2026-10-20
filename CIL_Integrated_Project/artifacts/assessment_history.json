@@ -1,0 +1,192 @@
+[
+  {
+    "assessment_id": "MG-20261020-155127-010",
+    "timestamp": "2026-10-20 15:51:27",
+    "machine_id": "TEST-UNIT-01",
+    "source": "Automated Test",
+    "inputs": {
+      "Type": "L",
+      "Air temperature [K]": 300.2,
+      "Process temperature [K]": 310.1,
+      "Rotational speed [rpm]": 1500.0,
+      "Torque [Nm]": 42.0,
+      "Tool wear [min]": 110.0
+    },
+    "failure_probability": 0.0015,
+    "predicted_failure": 0,
+    "risk_tier": "NOMINAL",
+    "primary_action": "Maintain Standard Operating Schedule",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-125021-009",
+    "timestamp": "2026-10-19 12:50:21",
+    "machine_id": "CNC-CELL-L01",
+    "source": "Overstrain Risk (High Torque + Wear)",
+    "inputs": {
+      "Type": "L",
+      "Air temperature [K]": 301.0,
+      "Process temperature [K]": 310.5,
+      "Rotational speed [rpm]": 1300.0,
+      "Torque [Nm]": 68.0,
+      "Tool wear [min]": 210.0
+    },
+    "failure_probability": 0.9565,
+    "predicted_failure": 1,
+    "risk_tier": "CRITICAL",
+    "primary_action": "Initiate Controlled Equipment Shutdown and Urgent Mechanical Inspection",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-124526-008",
+    "timestamp": "2026-10-19 12:45:26",
+    "machine_id": "CNC-CELL-L01",
+    "source": "Tool Wear Failure (Critical Wear)",
+    "inputs": {
+      "Type": "M",
+      "Air temperature [K]": 302.5,
+      "Process temperature [K]": 311.8,
+      "Rotational speed [rpm]": 1390.0,
+      "Torque [Nm]": 52.0,
+      "Tool wear [min]": 225.0
+    },
+    "failure_probability": 0.454,
+    "predicted_failure": 1,
+    "risk_tier": "ELEVATED",
+    "primary_action": "Schedule Targeted Sensor Diagnostic & Component Wear Inspection",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-124502-007",
+    "timestamp": "2026-10-19 12:45:02",
+    "machine_id": "CNC-CELL-L01",
+    "source": "Tool Wear Failure (Critical Wear)",
+    "inputs": {
+      "Type": "M",
+      "Air temperature [K]": 302.5,
+      "Process temperature [K]": 311.8,
+      "Rotational speed [rpm]": 1390.0,
+      "Torque [Nm]": 52.0,
+      "Tool wear [min]": 225.0
+    },
+    "failure_probability": 0.454,
+    "predicted_failure": 1,
+    "risk_tier": "ELEVATED",
+    "primary_action": "Schedule Targeted Sensor Diagnostic & Component Wear Inspection",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-124447-006",
+    "timestamp": "2026-10-19 12:44:47",
+    "machine_id": "CNC-CELL-L01",
+    "source": "Manual Form",
+    "inputs": {
+      "Type": "M",
+      "Air temperature [K]": 301.4,
+      "Process temperature [K]": 310.7,
+      "Rotational speed [rpm]": 1400.0,
+      "Torque [Nm]": 42.0,
+      "Tool wear [min]": 64.0
+    },
+    "failure_probability": 0.002,
+    "predicted_failure": 0,
+    "risk_tier": "NOMINAL",
+    "primary_action": "Maintain Standard Operating Schedule",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-124323-005",
+    "timestamp": "2026-10-19 12:43:23",
+    "machine_id": "CNC-CELL-L01",
+    "source": "Manual Form",
+    "inputs": {
+      "Type": "L",
+      "Air temperature [K]": 300.0,
+      "Process temperature [K]": 310.0,
+      "Rotational speed [rpm]": 1500.0,
+      "Torque [Nm]": 40.0,
+      "Tool wear [min]": 60.0
+    },
+    "failure_probability": 0.0012,
+    "predicted_failure": 0,
+    "risk_tier": "NOMINAL",
+    "primary_action": "Maintain Standard Operating Schedule",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-123249-004",
+    "timestamp": "2026-10-19 12:32:49",
+    "machine_id": "TEST-UNIT-01",
+    "source": "Automated Test",
+    "inputs": {
+      "Type": "L",
+      "Air temperature [K]": 300.2,
+      "Process temperature [K]": 310.1,
+      "Rotational speed [rpm]": 1500.0,
+      "Torque [Nm]": 42.0,
+      "Tool wear [min]": 110.0
+    },
+    "failure_probability": 0.0015,
+    "predicted_failure": 0,
+    "risk_tier": "NOMINAL",
+    "primary_action": "Maintain Standard Operating Schedule",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-123100-003",
+    "timestamp": "2026-10-19 12:31:00",
+    "machine_id": "TEST-UNIT-01",
+    "source": "Automated Test",
+    "inputs": {
+      "Type": "L",
+      "Air temperature [K]": 300.2,
+      "Process temperature [K]": 310.1,
+      "Rotational speed [rpm]": 1500.0,
+      "Torque [Nm]": 42.0,
+      "Tool wear [min]": 110.0
+    },
+    "failure_probability": 0.0015,
+    "predicted_failure": 0,
+    "risk_tier": "NOMINAL",
+    "primary_action": "Maintain Standard Operating Schedule",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-122919-002",
+    "timestamp": "2026-10-19 12:29:19",
+    "machine_id": "TEST-UNIT-01",
+    "source": "Automated Test",
+    "inputs": {
+      "Type": "L",
+      "Air temperature [K]": 300.2,
+      "Process temperature [K]": 310.1,
+      "Rotational speed [rpm]": 1500.0,
+      "Torque [Nm]": 42.0,
+      "Tool wear [min]": 110.0
+    },
+    "failure_probability": 0.0015,
+    "predicted_failure": 0,
+    "risk_tier": "NOMINAL",
+    "primary_action": "Maintain Standard Operating Schedule",
+    "model_name": "Random Forest Classifier"
+  },
+  {
+    "assessment_id": "MG-20261019-122906-001",
+    "timestamp": "2026-10-19 12:29:06",
+    "machine_id": "TEST-UNIT-01",
+    "source": "Automated Test",
+    "inputs": {
+      "Type": "L",
+      "Air temperature [K]": 300.2,
+      "Process temperature [K]": 310.1,
+      "Rotational speed [rpm]": 1500.0,
+      "Torque [Nm]": 42.0,
+      "Tool wear [min]": 110.0
+    },
+    "failure_probability": 0.0015,
+    "predicted_failure": 0,
+    "risk_tier": "NOMINAL",
+    "primary_action": "Maintain Standard Operating Schedule",
+    "model_name": "Random Forest Classifier"
+  }
+]

@@ -1,183 +1,140 @@
-# CIL Integrated Project: Predictive Maintenance & AI Planning (Tasks 3–8)
+# MachineGuard — Predictive Maintenance Intelligence
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
-[![Streamlit App](https://img.shields.io/badge/Streamlit-1.58.0-red.svg)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/pytest-20%20passed-brightgreen.svg)](tests/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+[![Streamlit App](https://img.shields.io/badge/Streamlit-1.66.0-red.svg)](https://streamlit.io/)
+[![Tests](https://img.shields.io/badge/pytest-30%20passed-brightgreen.svg)](tests/)
 
-An enterprise-grade, modular Streamlit application integrating computational maintenance planning, statistical data profiling, classical machine learning, 1D convolutional neural networks, and model interpretability (Tasks 3 through 8).
+**MachineGuard** is an industrial decision-support prototype built by transforming and unifying laboratory tasks 3 through 8 of the CIL Integrated Project into an auditable, explainable predictive maintenance platform.
 
----
-
-## 1. Project Overview & Scope
-
-This project consolidates and refactors work from three standalone Jupyter notebooks into a deployable, interactive system:
-* **`CIL3.ipynb`** $\rightarrow$ **Task 3:** State Space Search & AI Maintenance Planning (BFS, DFS, A*).
-* **`CIL456.ipynb`** $\rightarrow$ **Tasks 4, 5, 6:** Exploratory Data Analysis, Supervised Classification (4 models), Clustering (K-Means, Dendrogram), and Tool Wear Regression.
-* **`CIL78 (1).ipynb`** $\rightarrow$ **Tasks 7, 8:** 1D CNN Architecture, Imbalance Handling, Early Stopping, ROC/PR Evaluation, Conv1D Feature Map Activations, and LIME Explainability.
-
-Original notebooks remain preserved in `notebooks/` and in the repository root.
+It directly answers four essential operational questions:
+1. **What is the predicted failure risk** for the supplied machine readings?
+2. **Which features influenced the model's prediction** (exact tree-path local attributions)?
+3. **What action should the user consider**, and what physical evidence supports it?
+4. **How reliable is the system**, and what are its operational boundaries and limitations?
 
 ---
 
-## 2. Confirmed Task Coverage
+## 1. Core Architecture & Main Workflow
 
-| Task | Title | Key Implementation Details | Status |
-| :--- | :--- | :--- | :--- |
-| **Task 3** | **AI Maintenance Planning** | 8-element state space, 9 maintenance actions, BFS, DFS, A* with admissible heuristic, interactive path validator. | **100% Operational** (Runs independently of dataset) |
-| **Task 4** | **Exploratory Data Analysis** | Outlier boxplots, KDE histograms, numerical correlation heatmap, `StandardScaler` pipeline. | **Ready** (Live when data present; schema audited) |
-| **Task 5** | **Supervised & Unsupervised ML** | Random Forest feature importance, 4 classifiers (RF, DT, SVM, LogReg), K-Means clustering, Ward hierarchical dendrogram. | **Ready** (Live when data present; historical audit available) |
-| **Task 6** | **Tool Wear Regression** | Linear regression on continuous tool degradation, MSE / $R^2$ metrics, Actual vs. Predicted scatter plot, residual diagnostics. | **Ready** (Live when data present; historical audit available) |
-| **Task 7** | **1D CNN Deep Learning** | Conv1D feature extractor with Batch Normalization, Max/Avg pooling, Class Weights for imbalance, ROC/PR curves, baseline Logistic Regression comparison. | **Ready** (Dual backend: PyTorch native on Win/Py3.14 + Keras support) |
-| **Task 8** | **Model Interpretability** | Conv1D layer filter activation heatmaps across 4 diagnostic cases (TP, TN, FP, FN), LIME feature attributions, linear vs deep comparative analysis. | **Ready** (Interactive exploration profiles active) |
+The application is structured into a streamlined industrial workflow:
+
+* **🛡️ Machine Assessment (Primary Workflow):**
+  - **Validated Telemetry Form:** Real-time sensor inputs (`Air temp`, `Process temp`, `Rotational speed`, `Torque`, `Tool wear`, and machine variant `Type`).
+  - **Demonstration Profiles:** Verified operating points from test data (Nominal, Critical Wear, Overstrain, Heat Dissipation).
+  - **Batch Upload:** Upload any operational CSV for bulk assessment and export results.
+  - **Instant Inference:** Evaluates the persisted Random Forest model (`artifacts/models/production_model.joblib`) with **zero retraining during runtime**.
+  - **Real Local Feature Attributions:** Exact tree-path probability deltas showing which sensors increased or mitigated risk.
+  - **What-If Counterfactual Simulator:** Interactive sensor sensitivity curves showing how varying a reading alters failure probability.
+* **📋 Assessment History:**
+  - Auditable in-session and persistent logs of all machine assessments (`artifacts/assessment_history.json`).
+  - One-click CSV audit trail export.
+* **📊 Model Performance & Leakage-Free Validation:**
+  - Evaluated strictly on an untouched held-out test split (2,000 samples, 20% stratified split).
+  - Reports Precision, Recall, F1, ROC-AUC, and PR-AUC.
+  - Full confusion matrix and operating threshold sensitivity analysis (`0.20` to `0.50`).
+  - Subgroup reliability checks across machine quality variants (`L`, `M`, `H`).
+* **🔬 Experiments (Tasks 3–8):**
+  - Preserved academic and laboratory modules:
+    * **Task 3:** State Space Search AI Planner (BFS, DFS, A* for Pump P-101).
+    * **Task 4:** EDA, outlier boxplots, and correlation heatmaps.
+    * **Task 5:** Classical classifiers (RF, DT, SVM, LogReg) and K-Means clustering.
+    * **Task 6:** Tool Wear linear regression residual diagnostics.
+    * **Task 7:** 1D CNN deep learning architecture benchmark.
+    * **Task 8:** Conv1D activation feature maps and LIME explainability.
+* **⚖️ About, Ethics & Limitations:**
+  - Class imbalance consequences (3.39% failure rate).
+  - Target leakage prevention (exclusion of `TWF`, `HDF`, `PWF`, `OSF`, `RNF`).
+  - Synthetic data provenance and domain shift caveats.
+  - Human-in-the-loop safety oversight.
 
 ---
 
-## 3. Project Directory Structure
+## 2. Directory Structure
 
 ```text
 CIL_Integrated_Project/
-├── app.py                         # Unified Streamlit application entry point
+├── app.py                         # Unified MachineGuard Streamlit application
 ├── config.py                      # Centralized path, feature, and schema configuration
 ├── notebooks/                     # Preserved, read-only copies of original notebooks
-│   ├── CIL3.ipynb                 # Original Task 3 notebook
-│   ├── CIL456.ipynb               # Original Tasks 4-6 notebook
-│   └── CIL78.ipynb                # Original Tasks 7-8 notebook
+│   ├── CIL3.ipynb                 # Task 3 notebook
+│   ├── CIL456.ipynb               # Tasks 4-6 notebook
+│   └── CIL78.ipynb                # Tasks 7-8 notebook
 ├── modules/                       # Reusable analytical modules
 │   ├── __init__.py
-│   ├── planning.py                # Task 3: BFS, DFS, A*, validator
-│   ├── eda.py                     # Task 4: EDA, outlier plots, correlation, scaling
-│   ├── classical_ml.py            # Task 5: 4 Classifiers, feature importance, clustering
-│   ├── regression.py              # Task 6: Tool wear linear regression & diagnostics
-│   ├── cnn_model.py               # Task 7: 1D CNN architecture & evaluation
-│   └── interpretability.py        # Task 8: Activation heatmaps & LIME integration
+│   ├── model_trainer.py           # Leakage-free training and artifact persistence pipeline
+│   ├── inference.py               # Production inference engine with schema and bounds validation
+│   ├── decision_layer.py          # Operational risk tier mapping and inspection recommendations
+│   ├── history_manager.py         # Assessment history logger and CSV exporter
+│   ├── interpretability.py        # Real-model tree attributions, what-if sensitivity & activations
+│   ├── planning.py                # Task 3: State-space planning (BFS, DFS, A*)
+│   ├── eda.py                     # Task 4: EDA and preprocessing
+│   ├── classical_ml.py            # Task 5: Classical ML and clustering
+│   ├── regression.py              # Task 6: Tool wear regression
+│   └── cnn_model.py               # Task 7: 1D CNN architecture
 ├── data/
-│   ├── raw/                       # Place ai4i2020.csv here
+│   ├── raw/ai4i2020.csv           # Original AI4I 2020 predictive maintenance dataset
 │   └── processed/                 # Scaled and preprocessed datasets
 ├── artifacts/
-│   ├── models/                    # Saved model weights (.joblib, .pt, .keras)
-│   ├── figures/                   # Exported charts and graphs
-│   └── metadata.json              # Historical metrics, parameters, and architecture schemas
-├── tests/                         # Automated test suite (20 tests)
-│   ├── test_app_startup.py        # App syntax and compilation tests
-│   ├── test_config.py             # Path resolution and feature list tests
-│   ├── test_planning.py           # Algorithmic correctness and optimality tests
-│   ├── test_missing_dataset_behavior.py  # Missing file exception handling
-│   └── test_modules_contracts.py  # Synthetic contract tests
-├── requirements.txt               # Pinned Python package dependencies
-├── .gitignore                     # Git ignore rules for Python, IDEs, and artifacts
-├── README.md                      # This comprehensive documentation
-└── PROJECT_AUDIT.md               # Detailed cell-by-cell notebook audit report
+│   ├── models/
+│   │   ├── production_model.joblib # Persisted Random Forest + ColumnTransformer artifact
+│   │   └── test_set_split.joblib   # Persisted held-out test split for demonstration
+│   ├── assessment_history.json    # Persisted assessment audit log
+│   └── metadata.json              # Verified test metrics, schema, and threshold curves
+├── tests/                         # Automated test suite (30 passed tests)
+│   ├── test_machineguard_core.py  # Inference, decision layer, validation, and history tests
+│   ├── test_app_startup.py        # Streamlit app compilation smoke test
+│   ├── test_config.py             # Configuration contract tests
+│   ├── test_modules_contracts.py  # Modular transformation contract tests
+│   ├── test_planning.py           # AI planner BFS/DFS/A* optimality tests
+│   └── test_missing_dataset_behavior.py # Graceful degradation tests
+├── requirements.txt
+├── PROJECT_AUDIT.md               # Baseline audit and post-transformation report
+└── README.md
 ```
 
 ---
 
-## 4. Environment Setup & Installation
+## 3. Quick Start & Execution (Windows PowerShell)
 
-### Prerequisites
-* Windows, macOS, or Linux
-* Python 3.10 – 3.14 (Note: Python 3.14 on Windows runs PyTorch, Scikit-learn, and Streamlit natively; if TensorFlow is required, use Python $\le$ 3.12).
-
-### Installation (PowerShell on Windows)
+### Step 1: Activate Environment
 ```powershell
-# 1. Navigate to the integrated project folder
-cd CIL_Integrated_Project
-
-# 2. (Optional) Create and activate a virtual environment
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-
-# 3. Install core dependencies
-pip install -r requirements.txt
+cd .\CIL_Integrated_Project\
+.\.venv\Scripts\Activate.ps1
 ```
 
----
+### Step 2: Run Automated Tests
+```powershell
+pytest
+```
+*Expected: 30 passed tests.*
 
-## 5. How to Launch the Streamlit Application
-
-Run the application using Streamlit:
+### Step 3: Launch MachineGuard
 ```powershell
 streamlit run app.py
 ```
-The browser will automatically open at `http://localhost:8501`.
-
-### Application Features:
-* **Zero-Crash Startup:** The application starts immediately even when the dataset is absent.
-* **Task 3 AI Planner:** Interactive immediately without external data.
-* **Live File Upload:** If `ai4i2020.csv` is not in the filesystem, an interactive uploader on the Overview or EDA page allows instant in-session loading.
-* **Dual Deep Learning Engine:** Automatically detects available frameworks (PyTorch or TensorFlow/Keras).
+Open your browser to `http://localhost:8501`.
 
 ---
 
-## 6. Dataset Requirements & Placement
+## 4. Retraining & Generating Artifacts
 
-* **Expected Filename:** `ai4i2020.csv` (AI4I 2020 Predictive Maintenance Dataset).
-* **Expected Location:** `data/raw/ai4i2020.csv` (also automatically detected if placed in project root or parent folder).
-* **Expected Dimensions:** 10,000 rows × 14 columns.
-* **Expected Schema:**
-  * `UDI` (Integer ID)
-  * `Product ID` (Categorical String, e.g., 'M14860', 'L47181')
-  * `Type` (Categorical: 'L', 'M', 'H')
-  * `Air temperature [K]` (Float)
-  * `Process temperature [K]` (Float)
-  * `Rotational speed [rpm]` (Integer/Float)
-  * `Torque [Nm]` (Float)
-  * `Tool wear [min]` (Integer/Float)
-  * `Machine failure` (Binary Target: 0 = Normal, 1 = Failure)
-  * Failure Modes (Excluded during feature engineering): `TWF`, `HDF`, `PWF`, `OSF`, `RNF`.
-
----
-
-## 7. Running the Automated Test Suite
-
-Run the full pytest suite from the project root:
+To retrain models from scratch on `data/raw/ai4i2020.csv` and regenerate artifacts:
 ```powershell
-python -m pytest tests -v
+.\.venv\Scripts\python.exe -m modules.model_trainer
 ```
-
-### Verified Test Results:
-```text
-tests/test_app_startup.py::test_app_compiles_cleanly PASSED              [  5%]
-tests/test_config.py::test_paths_exist_or_can_be_created PASSED          [ 10%]
-tests/test_config.py::test_feature_lists_integrity PASSED                [ 15%]
-tests/test_config.py::test_locate_dataset_contract PASSED                [ 20%]
-tests/test_missing_dataset_behavior.py::test_eda_load_dataset_missing_file_raises PASSED [ 25%]
-tests/test_missing_dataset_behavior.py::test_classical_ml_load_trained_models_missing PASSED [ 30%]
-tests/test_modules_contracts.py::test_eda_summary_contract PASSED        [ 35%]
-tests/test_modules_contracts.py::test_eda_preprocessing_contract PASSED  [ 40%]
-tests/test_modules_contracts.py::test_classical_ml_pipeline_contract PASSED [ 45%]
-tests/test_modules_contracts.py::test_regression_pipeline_contract PASSED [ 50%]
-tests/test_modules_contracts.py::test_cnn_prep_and_pytorch_contract PASSED [ 55%]
-tests/test_planning.py::test_initial_and_goal_states PASSED              [ 60%]
-tests/test_planning.py::test_heuristic_admissibility PASSED              [ 65%]
-tests/test_planning.py::test_valid_action_prerequisites PASSED           [ 70%]
-tests/test_planning.py::test_apply_action_transitions PASSED             [ 75%]
-tests/test_planning.py::test_bfs_search PASSED                           [ 80%]
-tests/test_planning.py::test_dfs_search PASSED                           [ 85%]
-tests/test_planning.py::test_astar_search PASSED                         [ 90%]
-tests/test_planning.py::test_path_validation PASSED                      [ 95%]
-tests/test_planning.py::test_run_all_algorithms PASSED                   [100%]
-
-============================= 20 passed in 4.83s ==============================
-```
+This strictly enforces:
+- Exclusion of post-failure flags (`TWF`, `HDF`, `PWF`, `OSF`, `RNF`) to prevent target leakage.
+- Stratified 80/20 train/test split.
+- `StandardScaler` fitted exclusively on training data.
+- Atomic persistence to `artifacts/models/production_model.joblib` and `artifacts/metadata.json`.
 
 ---
 
-## 8. Deployment to Streamlit Community Cloud
+## 5. Model Performance Summary (Held-Out Test Set)
 
-This repository is prepared for zero-configuration deployment to **Streamlit Community Cloud**:
-1. Commit the `CIL_Integrated_Project` directory to GitHub.
-2. In [share.streamlit.io](https://share.streamlit.io/), click **New app**.
-3. Select your repository and branch.
-4. Set Main file path: `CIL_Integrated_Project/app.py` (or `app.py` if deployed from folder root).
-5. Deploy! The application will launch with Task 3 planning active and provide clear prompts to supply `ai4i2020.csv`.
-
----
-
-## 9. Next Steps When the Dataset Becomes Available
-
-When `ai4i2020.csv` is obtained, execute the following steps:
-1. **Place File:** Copy `ai4i2020.csv` into `CIL_Integrated_Project/data/raw/` (or upload via the web UI).
-2. **Execute Preprocessing:** In Task 4 page, click **Run Preprocessing** to generate `cleaned_predictive_maintenance.csv`.
-3. **Train Classifiers:** In Task 5 page, click **Train All 4 Classifiers** to verify live classification accuracy against historical notebook benchmarks (RF ~98.4%).
-4. **Evaluate Deep Learning:** In Task 7 page, execute 1D CNN training to verify convergence and ROC-AUC curve (~0.980).
-5. **Inspect Live Activations:** In Task 8 page, inspect live activation heatmaps on actual test failure instances.
+| Model | ROC-AUC | PR-AUC | F1-Score | Precision | Recall | Primary Role |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Random Forest (Production)** | **0.9597** | **0.7814** | **0.7121** | **0.7344** | **0.6912** | **Primary Decision Engine** |
+| Gradient Boosting | 0.9699 | 0.8022 | 0.7667 | 0.8846 | 0.6765 | Benchmark Ensemble |
+| Logistic Regression (Balanced) | 0.9069 | 0.3817 | 0.2419 | 0.1418 | 0.8235 | Linear Baseline |
+| 1D CNN | 0.9800 | 0.5800 | 0.5640 | 0.5000 | 0.6470 | Experimental Deep Learning |

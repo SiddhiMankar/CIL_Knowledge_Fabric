@@ -1,6 +1,13 @@
 {
   "project": "CIL Integrated Predictive Maintenance & AI Planning",
-  "tasks": ["Task 3", "Task 4", "Task 5", "Task 6", "Task 7", "Task 8"],
+  "tasks": [
+    "Task 3",
+    "Task 4",
+    "Task 5",
+    "Task 6",
+    "Task 7",
+    "Task 8"
+  ],
   "dataset_spec": {
     "filename": "ai4i2020.csv",
     "rows": 10000,
@@ -24,7 +31,7 @@
         "actions_count": 8,
         "path_cost": 15,
         "nodes_expanded": 9,
-        "execution_time_sec": 0.00008
+        "execution_time_sec": 8e-05
       },
       "A*": {
         "solution_found": true,
@@ -48,15 +55,15 @@
     "test_split_ratio": 0.2,
     "models": {
       "Random Forest": {
-        "accuracy": 0.9840,
+        "accuracy": 0.984,
         "notes": "Top performing classifier in notebook CIL456"
       },
       "Decision Tree": {
-        "accuracy": 0.9790,
+        "accuracy": 0.979,
         "max_depth": 5
       },
       "SVM (RBF kernel)": {
-        "accuracy": 0.9760
+        "accuracy": 0.976
       },
       "Logistic Regression": {
         "accuracy": 0.9735
@@ -64,7 +71,10 @@
     },
     "clustering": {
       "kmeans_clusters": 3,
-      "features": ["Rotational speed [rpm]", "Torque [Nm]"]
+      "features": [
+        "Rotational speed [rpm]",
+        "Torque [Nm]"
+      ]
     }
   },
   "task6_regression_benchmarks": {
@@ -78,28 +88,250 @@
     "architecture": "1D CNN (Conv1D 32 -> BatchNorm -> MaxPool -> Conv1D 64 -> BatchNorm -> GlobalAvgPool -> Dense 64 -> Dropout 0.5 -> Dense 1)",
     "cnn_metrics": {
       "accuracy": 0.966,
-      "precision": 0.500,
+      "precision": 0.5,
       "recall": 0.647,
       "f1_score": 0.564,
-      "roc_auc": 0.980,
-      "pr_auc": 0.580
+      "roc_auc": 0.98,
+      "pr_auc": 0.58
     },
     "baseline_logistic_regression_metrics": {
       "accuracy": 0.824,
       "precision": 0.142,
       "recall": 0.824,
       "f1_score": 0.242,
-      "roc_auc": 0.900,
-      "pr_auc": 0.450
+      "roc_auc": 0.9,
+      "pr_auc": 0.45
     }
   },
   "task8_interpretability_benchmarks": {
-    "methods": ["Conv1D Layer Activation Maps", "LIME Tabular Explainer"],
+    "methods": [
+      "Conv1D Layer Activation Maps",
+      "LIME Tabular Explainer"
+    ],
     "diagnostic_cases": {
-      "TN": {"index": 1, "actual": 0, "predicted": 0, "probability": 0.0000, "label": "True Negative (Normal)"},
-      "TP": {"index": 21, "actual": 1, "predicted": 1, "probability": 0.9999, "label": "True Positive (Failure)"},
-      "FP": {"index": 0, "actual": 0, "predicted": 1, "probability": 0.6847, "label": "False Positive"},
-      "FN": {"index": 17, "actual": 1, "predicted": 0, "probability": 0.0316, "label": "False Negative"}
+      "TN": {
+        "index": 1,
+        "actual": 0,
+        "predicted": 0,
+        "probability": 0.0,
+        "label": "True Negative (Normal)"
+      },
+      "TP": {
+        "index": 21,
+        "actual": 1,
+        "predicted": 1,
+        "probability": 0.9999,
+        "label": "True Positive (Failure)"
+      },
+      "FP": {
+        "index": 0,
+        "actual": 0,
+        "predicted": 1,
+        "probability": 0.6847,
+        "label": "False Positive"
+      },
+      "FN": {
+        "index": 17,
+        "actual": 1,
+        "predicted": 0,
+        "probability": 0.0316,
+        "label": "False Negative"
+      }
     }
+  },
+  "machineguard_production": {
+    "primary_model": "Random Forest",
+    "model_version": "1.0.0",
+    "feature_schema": {
+      "raw_inputs": [
+        "Type",
+        "Air temperature [K]",
+        "Process temperature [K]",
+        "Rotational speed [rpm]",
+        "Torque [Nm]",
+        "Tool wear [min]"
+      ],
+      "categorical": [
+        "Type"
+      ],
+      "numerical": [
+        "Air temperature [K]",
+        "Process temperature [K]",
+        "Rotational speed [rpm]",
+        "Torque [Nm]",
+        "Tool wear [min]"
+      ],
+      "transformed_features": [
+        "Air temperature [K]",
+        "Process temperature [K]",
+        "Rotational speed [rpm]",
+        "Torque [Nm]",
+        "Tool wear [min]",
+        "Type_L",
+        "Type_M"
+      ]
+    },
+    "operating_threshold": 0.35,
+    "held_out_metrics": {
+      "accuracy": 0.9715,
+      "precision": 0.5618,
+      "recall": 0.7353,
+      "f1_score": 0.6369,
+      "roc_auc": 0.9662,
+      "pr_auc": 0.7541,
+      "confusion_matrix": {
+        "tn": 1893,
+        "fp": 39,
+        "fn": 18,
+        "tp": 50
+      }
+    },
+    "all_model_evaluations": {
+      "Random Forest": {
+        "accuracy": 0.9715,
+        "precision": 0.5618,
+        "recall": 0.7353,
+        "f1_score": 0.6369,
+        "roc_auc": 0.9662,
+        "pr_auc": 0.7541,
+        "confusion_matrix": {
+          "tn": 1893,
+          "fp": 39,
+          "fn": 18,
+          "tp": 50
+        }
+      },
+      "Gradient Boosting": {
+        "accuracy": 0.9875,
+        "precision": 0.9057,
+        "recall": 0.7059,
+        "f1_score": 0.7934,
+        "roc_auc": 0.9672,
+        "pr_auc": 0.8106,
+        "confusion_matrix": {
+          "tn": 1927,
+          "fp": 5,
+          "fn": 20,
+          "tp": 48
+        }
+      },
+      "Logistic Regression (Balanced)": {
+        "accuracy": 0.824,
+        "precision": 0.1414,
+        "recall": 0.8235,
+        "f1_score": 0.2414,
+        "roc_auc": 0.9069,
+        "pr_auc": 0.3816,
+        "confusion_matrix": {
+          "tn": 1592,
+          "fp": 340,
+          "fn": 12,
+          "tp": 56
+        }
+      },
+      "Decision Tree": {
+        "accuracy": 0.9365,
+        "precision": 0.3314,
+        "recall": 0.8529,
+        "f1_score": 0.4774,
+        "roc_auc": 0.8762,
+        "pr_auc": 0.5465,
+        "confusion_matrix": {
+          "tn": 1815,
+          "fp": 117,
+          "fn": 10,
+          "tp": 58
+        }
+      }
+    },
+    "threshold_tradeoffs": {
+      "0.2": {
+        "tp": 63,
+        "fp": 139,
+        "fn": 5,
+        "tn": 1793,
+        "precision": 0.3119,
+        "recall": 0.9265,
+        "f1_score": 0.4667
+      },
+      "0.3": {
+        "tp": 62,
+        "fp": 92,
+        "fn": 6,
+        "tn": 1840,
+        "precision": 0.4026,
+        "recall": 0.9118,
+        "f1_score": 0.5586
+      },
+      "0.4": {
+        "tp": 54,
+        "fp": 63,
+        "fn": 14,
+        "tn": 1869,
+        "precision": 0.4615,
+        "recall": 0.7941,
+        "f1_score": 0.5838
+      },
+      "0.5": {
+        "tp": 50,
+        "fp": 39,
+        "fn": 18,
+        "tn": 1893,
+        "precision": 0.5618,
+        "recall": 0.7353,
+        "f1_score": 0.6369
+      }
+    },
+    "subgroup_performance": {
+      "L": {
+        "sample_count": 1170,
+        "failure_count": 38,
+        "failure_rate": 0.0325,
+        "tp": 33,
+        "fp": 51,
+        "fn": 5,
+        "tn": 1081,
+        "precision": 0.3929,
+        "recall": 0.8684,
+        "f1_score": 0.541
+      },
+      "M": {
+        "sample_count": 616,
+        "failure_count": 25,
+        "failure_rate": 0.0406,
+        "tp": 21,
+        "fp": 19,
+        "fn": 4,
+        "tn": 572,
+        "precision": 0.525,
+        "recall": 0.84,
+        "f1_score": 0.6462
+      },
+      "H": {
+        "sample_count": 214,
+        "failure_count": 5,
+        "failure_rate": 0.0234,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "tn": 205,
+        "precision": 0.5556,
+        "recall": 1.0,
+        "f1_score": 0.7143
+      }
+    },
+    "feature_importances": {
+      "Air temperature [K]": 0.094,
+      "Process temperature [K]": 0.0615,
+      "Rotational speed [rpm]": 0.289,
+      "Torque [Nm]": 0.3281,
+      "Tool wear [min]": 0.2132,
+      "Type_L": 0.0085,
+      "Type_M": 0.0058
+    },
+    "train_samples": 8000,
+    "test_samples": 2000,
+    "train_failures": 271,
+    "test_failures": 68
   }
 }
