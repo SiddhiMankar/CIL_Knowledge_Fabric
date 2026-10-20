@@ -24,6 +24,14 @@ METADATA_PATH = ARTIFACTS_DIR / "metadata.json"
 SCALER_PATH = MODELS_DIR / "scaler.joblib"
 LABEL_ENCODER_PATH = MODELS_DIR / "label_encoder.joblib"
 CLASSICAL_MODELS_PATH = MODELS_DIR / "classical_models.joblib"
+PRODUCTION_MODEL_PATH = MODELS_DIR / "production_model.joblib"
+TEST_SET_SPLIT_PATH = MODELS_DIR / "test_set_split.joblib"
+HISTORY_PATH = ARTIFACTS_DIR / "assessment_history.json"
+
+# Decision & Classification Constants
+DEFAULT_OPERATING_THRESHOLD = 0.35
+CRITICAL_PROBABILITY_THRESHOLD = 0.70
+RISK_TIERS = ["NOMINAL", "MONITORING", "ELEVATED", "CRITICAL"]
 
 # Feature Definitions
 TARGET_COL = "Machine failure"
@@ -98,7 +106,24 @@ def locate_dataset() -> Tuple[bool, Optional[Path]]:
     return False, None
 
 
+def locate_production_model() -> Tuple[bool, Optional[Path]]:
+    """
+    Search for production_model.joblib in known standard locations.
+    """
+    candidate_paths = [
+        PRODUCTION_MODEL_PATH,
+        MODELS_DIR / "production_model.joblib",
+        PROJECT_ROOT / "artifacts" / "models" / "production_model.joblib",
+        PROJECT_ROOT.parent / "CIL_Integrated_Project" / "artifacts" / "models" / "production_model.joblib"
+    ]
+    for p in candidate_paths:
+        if p.exists() and p.is_file():
+            return True, p
+    return False, None
+
+
 def get_processed_data_path() -> Path:
     """Return destination path for cleaned/processed dataset."""
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     return PROCESSED_DATA_DIR / PROCESSED_FILENAME
+

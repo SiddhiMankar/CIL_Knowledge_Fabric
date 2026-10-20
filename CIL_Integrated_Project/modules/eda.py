@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend; required for headless/test environments
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler

@@ -22,6 +22,8 @@ if str(PROJECT_ROOT) not in sys.path:
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive Agg backend; Streamlit uses st.pyplot(), not Tk windows
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -40,7 +42,7 @@ from modules import (
 
 # Set Streamlit Page Configuration
 st.set_page_config(
-    page_title="MachineGuard — Predictive Maintenance Intelligence",
+    page_title="KnowledgeFabric — Predictive Maintenance Intelligence",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -71,9 +73,9 @@ hist_mgr = history_manager.get_history_manager()
 st.sidebar.markdown(
     """
     <div style="padding: 10px 0; border-bottom: 1px solid #334155;">
-        <h2 style="margin: 0; color: #38BDF8; font-size: 1.4rem;">🛡️ MachineGuard</h2>
+        <h2 style="margin: 0; color: #38BDF8; font-size: 1.4rem;">🛡️ KnowledgeFabric</h2>
         <p style="margin: 2px 0 0 0; color: #94A3B8; font-size: 0.8rem; font-weight: 500;">
-            Predictive Maintenance Intelligence
+            MachineGuard Predictive Maintenance
         </p>
     </div>
     """,
@@ -96,13 +98,16 @@ st.sidebar.markdown("---")
 # Quick System Status in Sidebar
 dataset_found, dataset_path = config.locate_dataset()
 st.sidebar.markdown("**System Health & Artifacts:**")
-st.sidebar.markdown(f"- **Primary Model:** Random Forest (`v{engine.model_version}`)")
-st.sidebar.markdown(f"- **Operating Point:** `P(Fail) >= {engine.operating_threshold:.2f}`")
+if engine.is_loaded:
+    st.sidebar.markdown(f"- **Production Model:** Random Forest (`v{engine.model_version}`)")
+    st.sidebar.markdown(f"- **Operating Point:** `P(Fail) >= {engine.operating_threshold:.2f}`")
+else:
+    st.sidebar.error("- **Production Model:** Missing / Unloaded")
 st.sidebar.markdown(f"- **Telemetry Dataset:** `{'ai4i2020.csv (10k rows)' if dataset_found else 'Missing'}`")
 st.sidebar.markdown(f"- **Host Runtime:** Python `{sys.version.split()[0]}`")
 
 st.sidebar.markdown("---")
-st.sidebar.caption("MachineGuard Industrial Decision Support • v1.0.0")
+st.sidebar.caption("KnowledgeFabric Decision Support • v1.0.0")
 
 
 # ============================================================================
@@ -115,6 +120,22 @@ if nav_selection == "🛡️ Machine Assessment":
         "inference against the persisted production model without retraining, and presents risk tiers, "
         "concrete local feature evidence, and actionable maintenance protocols."
     )
+
+    # Graceful degradation alert if model is missing
+    if not engine.is_loaded:
+        st.error(f"⚠️ Production Model Artifact Not Available: {engine.load_error}")
+        if dataset_found:
+            col_tr1, _ = st.columns([1, 2])
+            with col_tr1:
+                if st.button("🚀 Train & Persist Production Model Artifacts Now"):
+                    with st.spinner("Training production models on data/raw/ai4i2020.csv..."):
+                        from modules import model_trainer
+                        model_trainer.train_and_persist_pipeline()
+                        engine = inference.get_inference_engine(force_reload=True)
+                        st.success("Model successfully trained and persisted to artifacts/models/production_model.joblib!")
+                        st.rerun()
+        else:
+            st.info("To initialize the model, place `ai4i2020.csv` in `data/raw/` and execute: `python -m modules.model_trainer`")
 
     tab_single, tab_batch = st.tabs(["⚙️ Single Machine Assessment", "📂 Batch Assessment (CSV Upload)"])
 
@@ -231,7 +252,9 @@ if nav_selection == "🛡️ Machine Assessment":
 
             # 1. Validate
             is_valid, err_msg, validated_df = engine.validate_input(raw_input_dict)
-            if not is_valid:
+            if not engine.is_loaded:
+                st.error("❌ Cannot assess machine: Production model artifact is not loaded. Please train or load the model first.")
+            elif not is_valid:
                 st.error(f"❌ Input Validation Error: {err_msg}")
             else:
                 # 2. Run Inference
@@ -400,42 +423,48 @@ if nav_selection == "🛡️ Machine Assessment":
             st.dataframe(batch_to_process.head(5), use_container_width=True)
 
             if st.button("🚀 Execute Batch Inference"):
-                try:
-                    with st.spinner("Processing batch inference..."):
-                        batch_results = engine.predict_batch(batch_to_process)
+                if not engine.is_loaded:
+                    st.error("❌ Cannot execute batch inference: Production model artifact is not loaded. Please train or load the model first.")
+                else:
+                    try:
+                        with st.spinner("Processing batch inference..."):
+                            batch_results = engine.predict_batch(batch_to_process)
 
-                    st.markdown("### 📈 Batch Assessment Summary")
-                    b1, b2, b3 = st.columns(3)
-                    critical_count = (batch_results["Risk_Level"] == "CRITICAL").sum()
-                    elevated_count = (batch_results["Risk_Level"] == "ELEVATED").sum()
-                    nominal_count = (batch_results["Risk_Level"] == "NOMINAL").sum()
+                        st.markdown("### 📈 Batch Assessment Summary")
+                        b1, b2, b3, b4 = st.columns(4)
+                        critical_count = (batch_results["Risk_Level"] == "CRITICAL").sum()
+                        elevated_count = (batch_results["Risk_Level"] == "ELEVATED").sum()
+                        monitoring_count = (batch_results["Risk_Level"] == "MONITORING").sum()
+                        nominal_count = (batch_results["Risk_Level"] == "NOMINAL").sum()
 
-                    with b1:
-                        st.metric("Critical Risk Machines", int(critical_count))
-                    with b2:
-                        st.metric("Elevated Risk Machines", int(elevated_count))
-                    with b3:
-                        st.metric("Nominal Machines", int(nominal_count))
+                        with b1:
+                            st.metric("Critical Risk", int(critical_count))
+                        with b2:
+                            st.metric("Elevated Risk", int(elevated_count))
+                        with b3:
+                            st.metric("Monitoring Needed", int(monitoring_count))
+                        with b4:
+                            st.metric("Nominal Health", int(nominal_count))
 
-                    st.dataframe(
-                        batch_results[[
-                            "Type", "Air temperature [K]", "Process temperature [K]",
-                            "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]",
-                            "Failure_Probability", "Risk_Level"
-                        ]],
-                        use_container_width=True
-                    )
+                        st.dataframe(
+                            batch_results[[
+                                "Type", "Air temperature [K]", "Process temperature [K]",
+                                "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]",
+                                "Failure_Probability", "Risk_Level"
+                            ]],
+                            use_container_width=True
+                        )
 
-                    # CSV Export
-                    csv_data = batch_results.to_csv(index=False).encode("utf-8")
-                    st.download_button(
-                        label="📥 Export Assessment Results (CSV)",
-                        data=csv_data,
-                        file_name="machineguard_batch_assessment.csv",
-                        mime="text/csv"
-                    )
-                except Exception as e:
-                    st.error(f"Batch Processing Error: {str(e)}")
+                        # CSV Export
+                        csv_data = batch_results.to_csv(index=False).encode("utf-8")
+                        st.download_button(
+                            label="📥 Export Assessment Results (CSV)",
+                            data=csv_data,
+                            file_name="machineguard_batch_assessment.csv",
+                            mime="text/csv"
+                        )
+                    except Exception as e:
+                        st.error(f"Batch Processing Error: {str(e)}")
 
 
 # ============================================================================
@@ -454,13 +483,14 @@ elif nav_selection == "📋 Assessment History":
         st.info("No assessments recorded yet. Run an assessment on the **Machine Assessment** tab to populate.")
     else:
         col_stats1, col_stats2, col_stats3, col_clear = st.columns([1, 1, 1, 1])
+        tier_col = "Risk Tier" if "Risk Tier" in history_df.columns else ("Risk_Tier" if "Risk_Tier" in history_df.columns else None)
         with col_stats1:
             st.metric("Total Assessments Logged", len(history_df))
         with col_stats2:
-            critical_logged = (history_df["Risk_Tier"] == "CRITICAL").sum()
+            critical_logged = (history_df[tier_col] == "CRITICAL").sum() if tier_col else 0
             st.metric("Critical Alerts Logged", int(critical_logged))
         with col_stats3:
-            elevated_logged = (history_df["Risk_Tier"] == "ELEVATED").sum()
+            elevated_logged = (history_df[tier_col] == "ELEVATED").sum() if tier_col else 0
             st.metric("Elevated Alerts Logged", int(elevated_logged))
         with col_clear:
             if st.button("🗑️ Clear History"):
@@ -493,20 +523,39 @@ elif nav_selection == "📊 Model Performance":
 
     mg_meta = metadata.get("machineguard_production", {})
     held_out = mg_meta.get("held_out_metrics", {})
+    op_metrics = mg_meta.get("metrics_at_operating_threshold", {})
     all_models = mg_meta.get("all_model_evaluations", {})
 
-    st.subheader("1. Primary Production Model: Random Forest")
+    st.subheader("1. Primary Production Model: Random Forest (Held-Out Test Set)")
+    st.markdown(
+        "Evaluated on **2,000 held-out test samples** (68 failures, 1,932 normal units, stratified 80/20 split) "
+        "with complete target leakage exclusion (no failure mode indicators)."
+    )
+
+    st.markdown("##### Standard Evaluation (Decision Threshold = 0.50)")
     col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
     with col_m1:
-        st.metric("ROC-AUC", f"{held_out.get('roc_auc', 0.9597):.4f}")
+        st.metric("ROC-AUC", f"{held_out.get('roc_auc', 0.9696):.4f}")
     with col_m2:
-        st.metric("PR-AUC", f"{held_out.get('pr_auc', 0.7814):.4f}")
+        st.metric("PR-AUC", f"{held_out.get('pr_auc', 0.7305):.4f}")
     with col_m3:
-        st.metric("F1-Score", f"{held_out.get('f1_score', 0.7121):.4f}")
+        st.metric("F1-Score", f"{held_out.get('f1_score', 0.6667):.4f}")
     with col_m4:
-        st.metric("Recall (Sensitivity)", f"{held_out.get('recall', 0.6912):.4f}")
+        st.metric("Recall (Sensitivity)", f"{held_out.get('recall', 0.6324):.4f}")
     with col_m5:
-        st.metric("Precision", f"{held_out.get('precision', 0.7344):.4f}")
+        st.metric("Precision", f"{held_out.get('precision', 0.7049):.4f}")
+
+    st.markdown("##### Calibrated Operational Point (Operating Threshold = 0.35)")
+    st.caption("Safety-biased operating point configured to minimize catastrophic equipment breakdown:")
+    col_o1, col_o2, col_o3, col_o4 = st.columns(4)
+    with col_o1:
+        st.metric("Operational Recall", f"{op_metrics.get('recall', 0.7647)*100:.1f}%", delta="+13.2% vs 0.50 threshold")
+    with col_o2:
+        st.metric("Operational Precision", f"{op_metrics.get('precision', 0.6047)*100:.1f}%")
+    with col_o3:
+        st.metric("Missed Failures (FN)", int(op_metrics.get('fn', 16)), delta="-9 missed breakdowns", delta_color="normal")
+    with col_o4:
+        st.metric("Caught Failures (TP)", f"{int(op_metrics.get('tp', 52))} / 68")
 
     st.markdown("---")
     st.subheader("2. Comparative Evaluation Across Candidate Classifiers (Held-Out Test Set)")
@@ -566,8 +615,13 @@ elif nav_selection == "📊 Model Performance":
                 })
             st.dataframe(pd.DataFrame(trade_rows), use_container_width=True)
             st.info(
-                "💡 **Engineering Tradeoff Note:** Lowering the operating threshold from `0.50` to `0.30` reduces "
-                "missed failures from 29 down to 14 (halving catastrophic risk) at the cost of modest additional inspections."
+                "💡 **Engineering Tradeoff Note:** Operating at threshold `0.35` (rather than standard `0.50`) increases "
+                "failure detection recall from 63.2% to 76.5% and reduces missed failures from 25 down to 16, "
+                "directly mitigating high-cost breakdown risks while maintaining precision above 60%."
+            )
+            st.caption(
+                "⚠️ **Industrial Reliability Notice:** Offline test-set performance does not establish real-world industrial reliability. "
+                "Models operate as decision-support heuristics requiring human engineering verification prior to maintenance execution."
             )
 
     st.markdown("---")

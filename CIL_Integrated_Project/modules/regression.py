@@ -13,6 +13,8 @@ Implements:
 from typing import Dict, Tuple, Any, Optional
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend; required for headless/test environments
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.linear_model import LinearRegression

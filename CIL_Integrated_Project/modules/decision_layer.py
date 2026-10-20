@@ -6,6 +6,66 @@ transparent operational risk tiers, evidentiary justifications, and actionable m
 
 from typing import Dict, List, Optional, Any
 import numpy as np
+import config
+
+def classify_risk_tier(
+    failure_probability: float,
+    threshold: float = config.DEFAULT_OPERATING_THRESHOLD
+) -> str:
+    """
+    Authoritative risk tier classification function used across all single and batch workflows.
+    Four-tier scheme:
+    - CRITICAL:   P(Fail) >= 0.70
+    - ELEVATED:   threshold <= P(Fail) < 0.70
+    - MONITORING: 0.5 * threshold <= P(Fail) < threshold
+    - NOMINAL:    P(Fail) < 0.5 * threshold
+    """
+    if threshold is None or not (0.0 <= threshold <= 1.0) or np.isnan(threshold):
+        raise ValueError(f"Operating threshold must be between 0.0 and 1.0. Got: {threshold}")
+
+    if failure_probability is None or np.isnan(failure_probability) or np.isinf(failure_probability):
+        raise ValueError(f"Invalid failure probability: {failure_probability}")
+
+    p = float(failure_probability)
+    # Clamp to [0.0, 1.0] to protect against floating precision artifacts
+    p = max(0.0, min(1.0, p))
+
+    if p >= config.CRITICAL_PROBABILITY_THRESHOLD:
+        return "CRITICAL"
+    elif p >= threshold:
+        return "ELEVATED"
+    elif p >= (threshold * 0.5):
+        return "MONITORING"
+    else:
+        return "NOMINAL"
+
+
+def get_risk_tier_metadata(risk_tier: str) -> Dict[str, str]:
+    """Returns color, urgency level, and primary action for an operational risk tier."""
+    tier_meta = {
+        "CRITICAL": {
+            "risk_color": "#DC2626",  # Red
+            "urgency": "IMMEDIATE (Within 2 Hours)",
+            "primary_action": "Initiate Controlled Equipment Shutdown and Urgent Mechanical Inspection"
+        },
+        "ELEVATED": {
+            "risk_color": "#F59E0B",  # Amber
+            "urgency": "HIGH (Within 24 Hours / Next Scheduled Shift)",
+            "primary_action": "Schedule Targeted Sensor Diagnostic & Component Wear Inspection"
+        },
+        "MONITORING": {
+            "risk_color": "#3B82F6",  # Blue
+            "urgency": "ROUTINE (Next Maintenance Cycle)",
+            "primary_action": "Maintain Normal Operation with Enhanced Telemetry Logging"
+        },
+        "NOMINAL": {
+            "risk_color": "#10B981",  # Green
+            "urgency": "NORMAL",
+            "primary_action": "Maintain Standard Operating Schedule"
+        }
+    }
+    return tier_meta.get(risk_tier, tier_meta["NOMINAL"])
+
 
 def assess_operational_decision(
     inference_result: Dict[str, Any],
@@ -14,37 +74,22 @@ def assess_operational_decision(
 ) -> Dict[str, Any]:
     """
     Transforms model prediction into a complete industrial maintenance recommendation:
-    - Risk Tier (NOMINAL, ELEVATED, CRITICAL)
+    - Risk Tier (NOMINAL, MONITORING, ELEVATED, CRITICAL)
     - Primary Evidence / Contributing Features
     - Actionable Inspection Protocol
     - Safety Caveats & Limitations
     """
     proba = inference_result["failure_probability"]
-    threshold = inference_result["operating_threshold"]
+    threshold = inference_result.get("operating_threshold", config.DEFAULT_OPERATING_THRESHOLD)
     inputs = inference_result["input_features"]
     contribs = inference_result.get("feature_contributions", {})
 
-    # 1. Determine Risk Tier
-    if proba >= 0.70:
-        risk_tier = "CRITICAL"
-        risk_color = "#DC2626"  # Red
-        urgency = "IMMEDIATE (Within 2 Hours)"
-        primary_action = "Initiate Controlled Equipment Shutdown and Urgent Mechanical Inspection"
-    elif proba >= threshold:
-        risk_tier = "ELEVATED"
-        risk_color = "#F59E0B"  # Amber
-        urgency = "HIGH (Within 24 Hours / Next Scheduled Shift)"
-        primary_action = "Schedule Targeted Sensor Diagnostic & Component Wear Inspection"
-    elif proba >= (threshold * 0.5):
-        risk_tier = "MONITORING"
-        risk_color = "#3B82F6"  # Blue
-        urgency = "ROUTINE (Next Maintenance Cycle)"
-        primary_action = "Maintain Normal Operation with Enhanced Telemetry Logging"
-    else:
-        risk_tier = "NOMINAL"
-        risk_color = "#10B981"  # Green
-        urgency = "NORMAL"
-        primary_action = "Maintain Standard Operating Schedule"
+    # 1. Determine Risk Tier via authoritative classification
+    risk_tier = classify_risk_tier(proba, threshold)
+    meta = get_risk_tier_metadata(risk_tier)
+    risk_color = meta["risk_color"]
+    urgency = meta["urgency"]
+    primary_action = meta["primary_action"]
 
     # 2. Extract Leading Risk Factors based on exact local feature contributions
     # Positive contribution increases failure probability

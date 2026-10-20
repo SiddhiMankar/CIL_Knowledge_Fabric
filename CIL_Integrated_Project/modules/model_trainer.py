@@ -149,7 +149,7 @@ def train_and_persist_pipeline(
     # Evaluate production model under custom operating thresholds (e.g. 0.30 vs 0.50)
     rf_proba_test = prod_clf.predict_proba(X_test_proc)[:, 1]
     threshold_eval = {}
-    for th in [0.20, 0.30, 0.40, 0.50]:
+    for th in [0.20, 0.30, 0.35, 0.40, 0.50]:
         th_pred = (rf_proba_test >= th).astype(int)
         th_cm = confusion_matrix(y_test, th_pred)
         th_tn, th_fp, th_fn, th_tp = th_cm.ravel()
@@ -235,6 +235,7 @@ def train_and_persist_pipeline(
         },
         "operating_threshold": 0.35,
         "held_out_metrics": eval_results[prod_model_name],
+        "metrics_at_operating_threshold": threshold_eval.get("0.35", {}),
         "all_model_evaluations": eval_results,
         "threshold_tradeoffs": threshold_eval,
         "subgroup_performance": subgroup_eval,
