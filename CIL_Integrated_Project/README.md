@@ -48,16 +48,16 @@ It directly answers four essential operational questions:
 
 ## 2. Quick Start (Windows PowerShell)
 
-`powershell
+```powershell
 cd .\CIL_Integrated_Project\
 pytest                        # Expected: 42 passed, 0 failed
 streamlit run app.py          # Open http://localhost:8501
-`
+```
 
 To retrain from scratch:
-`powershell
+```powershell
 python -m modules.model_trainer
-`
+```
 
 ---
 
@@ -70,7 +70,7 @@ python -m modules.model_trainer
 | Logistic Regression (Balanced) | 0.9069 | 0.3816 | 0.2414 | 0.1414 | 0.8235 | Linear Baseline |
 | 1D CNN | 0.9800 | 0.5800 | 0.5640 | 0.5000 | 0.6470 | Experimental DL |
 
-Production RF metrics are reported at the **operating threshold of 0.35** (not 0.50). At this threshold, recall is 76.5% vs. 63.2% at 0.50, reducing missed failures at acceptable false-positive cost ( inspection vs. ,500+ breakdown).
+Production RF metrics are reported at the **operating threshold of 0.35** (not 0.50). At this threshold, recall is 76.5% vs. 63.2% at 0.50, reducing missed failures at acceptable false-positive cost (~$50 inspection vs. ~$2,500+ breakdown).
 
 ---
 

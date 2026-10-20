@@ -1,8 +1,8 @@
 # CIL Integrated Project: Predictive Maintenance & AI Planning (Tasks 3–8)
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
-[![Streamlit App](https://img.shields.io/badge/Streamlit-1.58.0-red.svg)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/pytest-20%20passed-brightgreen.svg)](tests/)
+[![Streamlit App](https://img.shields.io/badge/Streamlit-1.66.0-red.svg)](https://streamlit.io/)
+[![Tests](https://img.shields.io/badge/pytest-42%20passed-brightgreen.svg)](tests/)
 
 An enterprise-grade, modular Streamlit application integrating computational maintenance planning, statistical data profiling, classical machine learning, 1D convolutional neural networks, and model interpretability (Tasks 3 through 8).
 
@@ -36,7 +36,7 @@ Original notebooks remain preserved in `notebooks/` and in the repository root.
 
 ```text
 CIL_Integrated_Project/
-├── app.py                         # Unified Streamlit application entry point
+├── app.py                         # KnowledgeFabric/MachineGuard Streamlit application
 ├── config.py                      # Centralized path, feature, and schema configuration
 ├── notebooks/                     # Preserved, read-only copies of original notebooks
 │   ├── CIL3.ipynb                 # Original Task 3 notebook
@@ -44,29 +44,37 @@ CIL_Integrated_Project/
 │   └── CIL78.ipynb                # Original Tasks 7-8 notebook
 ├── modules/                       # Reusable analytical modules
 │   ├── __init__.py
+│   ├── model_trainer.py           # Leakage-free training & artifact persistence pipeline
+│   ├── inference.py               # Production inference engine with schema validation
+│   ├── decision_layer.py          # Risk tier mapping & maintenance recommendations
+│   ├── history_manager.py         # Assessment history logger & CSV exporter
+│   ├── interpretability.py        # Tree attributions, what-if simulator & activations
 │   ├── planning.py                # Task 3: BFS, DFS, A*, validator
 │   ├── eda.py                     # Task 4: EDA, outlier plots, correlation, scaling
 │   ├── classical_ml.py            # Task 5: 4 Classifiers, feature importance, clustering
 │   ├── regression.py              # Task 6: Tool wear linear regression & diagnostics
-│   ├── cnn_model.py               # Task 7: 1D CNN architecture & evaluation
-│   └── interpretability.py        # Task 8: Activation heatmaps & LIME integration
+│   └── cnn_model.py               # Task 7: 1D CNN architecture & evaluation
 ├── data/
-│   ├── raw/                       # Place ai4i2020.csv here
+│   ├── raw/ai4i2020.csv           # AI4I 2020 Predictive Maintenance dataset
 │   └── processed/                 # Scaled and preprocessed datasets
 ├── artifacts/
-│   ├── models/                    # Saved model weights (.joblib, .pt, .keras)
+│   ├── models/
+│   │   ├── production_model.joblib # Persisted Random Forest + ColumnTransformer
+│   │   └── test_set_split.joblib   # Held-out test split for demonstration
+│   ├── assessment_history.json    # Persisted assessment audit log
 │   ├── figures/                   # Exported charts and graphs
-│   └── metadata.json              # Historical metrics, parameters, and architecture schemas
-├── tests/                         # Automated test suite (20 tests)
-│   ├── test_app_startup.py        # App syntax and compilation tests
+│   └── metadata.json              # Verified metrics, schema, and threshold curves
+├── tests/                         # Automated test suite (42 tests)
+│   ├── test_machineguard_core.py  # Inference, decision layer, history, validation tests
+│   ├── test_app_startup.py        # App syntax and compilation smoke test
 │   ├── test_config.py             # Path resolution and feature list tests
-│   ├── test_planning.py           # Algorithmic correctness and optimality tests
-│   ├── test_missing_dataset_behavior.py  # Missing file exception handling
-│   └── test_modules_contracts.py  # Synthetic contract tests
+│   ├── test_planning.py           # BFS/DFS/A* correctness and optimality tests
+│   ├── test_missing_dataset_behavior.py  # Graceful degradation tests
+│   └── test_modules_contracts.py  # Modular interface contract tests
 ├── requirements.txt               # Pinned Python package dependencies
 ├── .gitignore                     # Git ignore rules for Python, IDEs, and artifacts
 ├── README.md                      # This comprehensive documentation
-└── PROJECT_AUDIT.md               # Detailed cell-by-cell notebook audit report
+└── PROJECT_AUDIT.md               # Engineering audit & transformation report
 ```
 
 ---
@@ -129,35 +137,37 @@ The browser will automatically open at `http://localhost:8501`.
 
 ## 7. Running the Automated Test Suite
 
-Run the full pytest suite from the project root:
+Run the full pytest suite from the **repository root**:
 ```powershell
-python -m pytest tests -v
+python -m pytest CIL_Integrated_Project/tests -v
 ```
 
-### Verified Test Results:
+### Verified Test Results (42 tests, 0 failures):
 ```text
-tests/test_app_startup.py::test_app_compiles_cleanly PASSED              [  5%]
-tests/test_config.py::test_paths_exist_or_can_be_created PASSED          [ 10%]
-tests/test_config.py::test_feature_lists_integrity PASSED                [ 15%]
-tests/test_config.py::test_locate_dataset_contract PASSED                [ 20%]
-tests/test_missing_dataset_behavior.py::test_eda_load_dataset_missing_file_raises PASSED [ 25%]
-tests/test_missing_dataset_behavior.py::test_classical_ml_load_trained_models_missing PASSED [ 30%]
-tests/test_modules_contracts.py::test_eda_summary_contract PASSED        [ 35%]
-tests/test_modules_contracts.py::test_eda_preprocessing_contract PASSED  [ 40%]
-tests/test_modules_contracts.py::test_classical_ml_pipeline_contract PASSED [ 45%]
-tests/test_modules_contracts.py::test_regression_pipeline_contract PASSED [ 50%]
-tests/test_modules_contracts.py::test_cnn_prep_and_pytorch_contract PASSED [ 55%]
-tests/test_planning.py::test_initial_and_goal_states PASSED              [ 60%]
-tests/test_planning.py::test_heuristic_admissibility PASSED              [ 65%]
-tests/test_planning.py::test_valid_action_prerequisites PASSED           [ 70%]
-tests/test_planning.py::test_apply_action_transitions PASSED             [ 75%]
-tests/test_planning.py::test_bfs_search PASSED                           [ 80%]
-tests/test_planning.py::test_dfs_search PASSED                           [ 85%]
-tests/test_planning.py::test_astar_search PASSED                         [ 90%]
-tests/test_planning.py::test_path_validation PASSED                      [ 95%]
-tests/test_planning.py::test_run_all_algorithms PASSED                   [100%]
+CIL_Integrated_Project/tests/test_app_startup.py::test_app_compiles_cleanly PASSED
+CIL_Integrated_Project/tests/test_config.py::test_paths_exist_or_can_be_created PASSED
+CIL_Integrated_Project/tests/test_config.py::test_feature_lists_integrity PASSED
+CIL_Integrated_Project/tests/test_config.py::test_locate_dataset_contract PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_inference_engine_initialization PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_valid_single_prediction PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_input_validation_missing_column PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_input_validation_invalid_type PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_input_validation_out_of_bounds PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_batch_prediction_dataframe PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_decision_layer_mapping PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_critical_failure_condition_decision PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_history_logging_and_export PASSED
+CIL_Integrated_Project/tests/test_machineguard_core.py::test_missing_model_controlled_failure PASSED
+... (22 machineguard_core tests) ...
+CIL_Integrated_Project/tests/test_planning.py::test_bfs_search PASSED
+CIL_Integrated_Project/tests/test_planning.py::test_dfs_search PASSED
+CIL_Integrated_Project/tests/test_planning.py::test_astar_search PASSED
+CIL_Integrated_Project/tests/test_planning.py::test_path_validation PASSED
+CIL_Integrated_Project/tests/test_planning.py::test_run_all_algorithms PASSED
+CIL_Integrated_Project/tests/test_modules_contracts.py::test_classical_ml_pipeline_contract PASSED
+CIL_Integrated_Project/tests/test_missing_dataset_behavior.py::test_eda_load_dataset_missing_file_raises PASSED
 
-============================= 20 passed in 4.83s ==============================
+============================= 42 passed in 9.45s ==============================
 ```
 
 ---
@@ -165,19 +175,28 @@ tests/test_planning.py::test_run_all_algorithms PASSED                   [100%]
 ## 8. Deployment to Streamlit Community Cloud
 
 This repository is prepared for zero-configuration deployment to **Streamlit Community Cloud**:
-1. Commit the `CIL_Integrated_Project` directory to GitHub.
+1. Push to GitHub (already done at `SiddhiMankar/CIL_Knowledge_Fabric`).
 2. In [share.streamlit.io](https://share.streamlit.io/), click **New app**.
-3. Select your repository and branch.
-4. Set Main file path: `CIL_Integrated_Project/app.py` (or `app.py` if deployed from folder root).
-5. Deploy! The application will launch with Task 3 planning active and provide clear prompts to supply `ai4i2020.csv`.
+3. Select repository and branch `main`.
+4. Set Main file path: `CIL_Integrated_Project/app.py`.
+5. Deploy. The application starts immediately — Task 3 AI Planner, Machine Assessment, and Model Performance pages are all fully functional.
 
 ---
 
-## 9. Next Steps When the Dataset Becomes Available
+## 9. Production Model & Current Status
 
-When `ai4i2020.csv` is obtained, execute the following steps:
-1. **Place File:** Copy `ai4i2020.csv` into `CIL_Integrated_Project/data/raw/` (or upload via the web UI).
-2. **Execute Preprocessing:** In Task 4 page, click **Run Preprocessing** to generate `cleaned_predictive_maintenance.csv`.
-3. **Train Classifiers:** In Task 5 page, click **Train All 4 Classifiers** to verify live classification accuracy against historical notebook benchmarks (RF ~98.4%).
-4. **Evaluate Deep Learning:** In Task 7 page, execute 1D CNN training to verify convergence and ROC-AUC curve (~0.980).
-5. **Inspect Live Activations:** In Task 8 page, inspect live activation heatmaps on actual test failure instances.
+The dataset (`ai4i2020.csv`) is present and the production model is trained and persisted:
+
+| Item | Status |
+| :--- | :--- |
+| Dataset `data/raw/ai4i2020.csv` | Present (10,000 rows × 14 cols) |
+| `artifacts/models/production_model.joblib` | Trained, persisted, version 1.0.0 |
+| `artifacts/models/test_set_split.joblib` | Held-out test split (2,000 samples) |
+| `artifacts/metadata.json` | Populated with verified held-out metrics |
+| Automated test suite | 42 passed, 0 failed |
+
+To retrain the production model from scratch:
+```powershell
+cd CIL_Integrated_Project
+python -m modules.model_trainer
+```

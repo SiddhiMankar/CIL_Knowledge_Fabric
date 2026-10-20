@@ -52,7 +52,7 @@ Candidate models evaluated on the exact same held-out test set (2,000 samples):
 While the 1D CNN achieved strong ROC-AUC, its PR-AUC on rare failures (3.39%) was significantly lower (0.5800 vs. 0.7305 for Random Forest). Tabular physical measurements lack translational invariance; convolving adjacent independent sensor columns is artificial. Random Forest provides superior PR-AUC, fast execution, determinism, and exact tree-path interpretability without requiring GPU runtimes.
 
 ### 3.2 Operating Threshold Tuning
-Default threshold of 0.35 (not 0.50) because catastrophic in-service breakdown (~,500) far outweighs preventive inspection (~). At threshold=0.35: Recall=76.5%, Precision=60.5%, F1=0.6753.
+Default threshold of 0.35 (not 0.50) because catastrophic in-service breakdown (~$2,500) far outweighs preventive inspection (~$50). At threshold=0.35: Recall=76.5%, Precision=60.5%, F1=0.6753.
 
 ### 3.3 Four-Tier Risk Classification
 Risk tiers standardised across all single and batch workflows via a single authoritative function in decision_layer.py:
@@ -96,7 +96,7 @@ Risk tiers standardised across all single and batch workflows via a single autho
 
 ## 6. Commands to Run (Windows PowerShell)
 
-`powershell
+```powershell
 # Navigate to project directory
 cd .\CIL_Integrated_Project\
 
@@ -105,5 +105,5 @@ pytest -v
 
 # Launch KnowledgeFabric application
 streamlit run app.py
-`
+```
 App URL: http://localhost:8501
