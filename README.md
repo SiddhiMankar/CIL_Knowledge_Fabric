@@ -1,10 +1,10 @@
 # CIL Integrated Project: Predictive Maintenance & AI Planning (Tasks 3–8)
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
-[![Streamlit App](https://img.shields.io/badge/Streamlit-1.66.0-red.svg)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/pytest-42%20passed-brightgreen.svg)](tests/)
+[![Streamlit App](https://img.shields.io/badge/Streamlit-1.58.0%2B-red.svg)](https://streamlit.io/)
+[![Tests](https://img.shields.io/badge/pytest-55%20passed-brightgreen.svg)](tests/)
 
-An enterprise-grade, modular Streamlit application integrating computational maintenance planning, statistical data profiling, classical machine learning, 1D convolutional neural networks, and model interpretability (Tasks 3 through 8).
+An enterprise-grade, modular Streamlit predictive maintenance intelligence platform (**MachineGuard**) integrating user-selectable ML/DL models (Random Forest, Gradient Boosting, Logistic Regression, 1D CNN), computational maintenance planning, statistical data profiling, and explainability (Tasks 3 through 8).
 
 ---
 
@@ -13,7 +13,7 @@ An enterprise-grade, modular Streamlit application integrating computational mai
 This project consolidates and refactors work from three standalone Jupyter notebooks into a deployable, interactive system:
 * **`CIL3.ipynb`** $\rightarrow$ **Task 3:** State Space Search & AI Maintenance Planning (BFS, DFS, A*).
 * **`CIL456.ipynb`** $\rightarrow$ **Tasks 4, 5, 6:** Exploratory Data Analysis, Supervised Classification (4 models), Clustering (K-Means, Dendrogram), and Tool Wear Regression.
-* **`CIL78 (1).ipynb`** $\rightarrow$ **Tasks 7, 8:** 1D CNN Architecture, Imbalance Handling, Early Stopping, ROC/PR Evaluation, Conv1D Feature Map Activations, and LIME Explainability.
+* **`CIL78 (1).ipynb`** $\rightarrow$ **Tasks 7, 8:** 1D CNN Architecture, Imbalance Handling, Early Stopping, ROC/PR Evaluation, Conv1D Feature Map Activations, and Explainability.
 
 Original notebooks remain preserved in `notebooks/` and in the repository root.
 
@@ -25,10 +25,10 @@ Original notebooks remain preserved in `notebooks/` and in the repository root.
 | :--- | :--- | :--- | :--- |
 | **Task 3** | **AI Maintenance Planning** | 8-element state space, 9 maintenance actions, BFS, DFS, A* with admissible heuristic, interactive path validator. | **100% Operational** (Runs independently of dataset) |
 | **Task 4** | **Exploratory Data Analysis** | Outlier boxplots, KDE histograms, numerical correlation heatmap, `StandardScaler` pipeline. | **Ready** (Live when data present; schema audited) |
-| **Task 5** | **Supervised & Unsupervised ML** | Random Forest feature importance, 4 classifiers (RF, DT, SVM, LogReg), K-Means clustering, Ward hierarchical dendrogram. | **Ready** (Live when data present; historical audit available) |
+| **Task 5** | **Supervised & Unsupervised ML** | Random Forest feature importance, 4 classifiers (RF, DT, SVM, LogReg), K-Means clustering, Ward hierarchical dendrogram. | **Ready** (Live when data present; model registry active) |
 | **Task 6** | **Tool Wear Regression** | Linear regression on continuous tool degradation, MSE / $R^2$ metrics, Actual vs. Predicted scatter plot, residual diagnostics. | **Ready** (Live when data present; historical audit available) |
-| **Task 7** | **1D CNN Deep Learning** | Conv1D feature extractor with Batch Normalization, Max/Avg pooling, Class Weights for imbalance, ROC/PR curves, baseline Logistic Regression comparison. | **Ready** (Dual backend: PyTorch native on Win/Py3.14 + Keras support) |
-| **Task 8** | **Model Interpretability** | Conv1D layer filter activation heatmaps across 4 diagnostic cases (TP, TN, FP, FN), LIME feature attributions, linear vs deep comparative analysis. | **Ready** (Interactive exploration profiles active) |
+| **Task 7** | **1D CNN Deep Learning** | Conv1D feature extractor with Batch Normalization, Max/Avg pooling, Class Weights for imbalance, ROC/PR curves, baseline Logistic Regression comparison. | **Ready** (PyTorch native on Win/Py3.14 + Keras support) |
+| **Task 8** | **Model Interpretability** | Conv1D layer filter activation heatmaps across 4 diagnostic cases (TP, TN, FP, FN), tree-path attributions, linear log-odds analysis. | **Ready** (Interactive exploration profiles active) |
 
 ---
 
@@ -36,7 +36,7 @@ Original notebooks remain preserved in `notebooks/` and in the repository root.
 
 ```text
 CIL_Integrated_Project/
-├── app.py                         # KnowledgeFabric/MachineGuard Streamlit application
+├── app.py                         # MachineGuard Streamlit application
 ├── config.py                      # Centralized path, feature, and schema configuration
 ├── notebooks/                     # Preserved, read-only copies of original notebooks
 │   ├── CIL3.ipynb                 # Original Task 3 notebook
@@ -44,11 +44,12 @@ CIL_Integrated_Project/
 │   └── CIL78.ipynb                # Original Tasks 7-8 notebook
 ├── modules/                       # Reusable analytical modules
 │   ├── __init__.py
-│   ├── model_trainer.py           # Leakage-free training & artifact persistence pipeline
-│   ├── inference.py               # Production inference engine with schema validation
+│   ├── model_registry.py          # Centralized Model Registry (catalog, metadata, comparison)
+│   ├── model_trainer.py           # Leakage-free training & multi-model artifact persistence pipeline
+│   ├── inference.py               # Unified multi-model inference engine with schema validation
 │   ├── decision_layer.py          # Risk tier mapping & maintenance recommendations
-│   ├── history_manager.py         # Assessment history logger & CSV exporter
-│   ├── interpretability.py        # Tree attributions, what-if simulator & activations
+│   ├── history_manager.py         # Assessment history logger with model metadata & filtering
+│   ├── interpretability.py        # Tree attributions, linear log-odds, CNN activations & what-if simulator
 │   ├── planning.py                # Task 3: BFS, DFS, A*, validator
 │   ├── eda.py                     # Task 4: EDA, outlier plots, correlation, scaling
 │   ├── classical_ml.py            # Task 5: 4 Classifiers, feature importance, clustering
@@ -60,11 +61,16 @@ CIL_Integrated_Project/
 ├── artifacts/
 │   ├── models/
 │   │   ├── production_model.joblib # Persisted Random Forest + ColumnTransformer
-│   │   └── test_set_split.joblib   # Held-out test split for demonstration
-│   ├── assessment_history.json    # Persisted assessment audit log
+│   │   ├── random_forest.joblib    # Random Forest classifier artifact
+│   │   ├── gradient_boosting.joblib # Gradient Boosting classifier artifact
+│   │   ├── logistic_regression.joblib # Logistic Regression classifier artifact
+│   │   ├── cnn_1d.joblib           # PyTorch 1D CNN model artifact
+│   │   └── test_set_split.joblib   # Common held-out test split for demonstration
+│   ├── assessment_history.json    # Persisted assessment audit log with model metadata
 │   ├── figures/                   # Exported charts and graphs
 │   └── metadata.json              # Verified metrics, schema, and threshold curves
-├── tests/                         # Automated test suite (42 tests)
+├── tests/                         # Automated test suite (55 tests)
+│   ├── test_model_selection.py    # Model registry, multi-model inference & comparison tests
 │   ├── test_machineguard_core.py  # Inference, decision layer, history, validation tests
 │   ├── test_app_startup.py        # App syntax and compilation smoke test
 │   ├── test_config.py             # Path resolution and feature list tests

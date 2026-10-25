@@ -1,11 +1,12 @@
 """
 MachineGuard — Predictive Maintenance Intelligence
-Industrial decision-support prototype built upon CIL Integrated Lab Tasks 3-8.
+Industrial decision-support platform with user-selectable Machine Learning and Deep Learning models.
+Built upon CIL Integrated Lab Tasks 3-8 with full artifact persistence and leakage exclusion.
 
 Main Navigation Structure:
-- 🛡️ Machine Assessment (Single input, demonstration cases, CSV batch upload, real inference)
-- 📋 Assessment History (Auditable logs, filtering, CSV export)
-- 📊 Model Performance (Rigorous held-out evaluation, PR-AUC, confusion matrix, threshold tradeoffs)
+- 🛡️ Machine Assessment (Single telemetry, demonstration profiles, multi-model comparison, CSV batch upload)
+- 📋 Assessment History (Auditable logs, model filtering, CSV export)
+- 📊 Model Performance (Rigorous held-out evaluation across RF, GB, LR, and 1D CNN)
 - 🔬 Experiments (Tasks 3–8) (Preserved interactive laboratory tasks: Planning, EDA, Classical ML, Regression, 1D CNN, Interpretability)
 - ⚖️ About, Ethics & Limitations (Class imbalance, safety oversight, domain shift, synthetic data provenance)
 """
@@ -23,7 +24,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')  # Non-interactive Agg backend; Streamlit uses st.pyplot(), not Tk windows
+matplotlib.use('Agg')  # Non-interactive Agg backend; Streamlit uses st.pyplot()
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -37,12 +38,13 @@ from modules import (
     interpretability,
     inference,
     decision_layer,
-    history_manager
+    history_manager,
+    model_registry
 )
 
 # Set Streamlit Page Configuration
 st.set_page_config(
-    page_title="KnowledgeFabric — Predictive Maintenance Intelligence",
+    page_title="MachineGuard — Predictive Maintenance Intelligence",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -66,16 +68,16 @@ def load_raw_dataset():
 
 metadata = load_metadata()
 raw_df = load_raw_dataset()
-engine = inference.get_inference_engine()
+registry = model_registry.get_model_registry()
 hist_mgr = history_manager.get_history_manager()
 
 # Sidebar Brand & Navigation
 st.sidebar.markdown(
     """
     <div style="padding: 10px 0; border-bottom: 1px solid #334155;">
-        <h2 style="margin: 0; color: #38BDF8; font-size: 1.4rem;">🛡️ KnowledgeFabric</h2>
+        <h2 style="margin: 0; color: #38BDF8; font-size: 1.4rem;">🛡️ MachineGuard</h2>
         <p style="margin: 2px 0 0 0; color: #94A3B8; font-size: 0.8rem; font-weight: 500;">
-            MachineGuard Predictive Maintenance
+            Predictive Maintenance Intelligence
         </p>
     </div>
     """,
@@ -97,17 +99,17 @@ nav_selection = st.sidebar.radio(
 st.sidebar.markdown("---")
 # Quick System Status in Sidebar
 dataset_found, dataset_path = config.locate_dataset()
-st.sidebar.markdown("**System Health & Artifacts:**")
-if engine.is_loaded:
-    st.sidebar.markdown(f"- **Production Model:** Random Forest (`v{engine.model_version}`)")
-    st.sidebar.markdown(f"- **Operating Point:** `P(Fail) >= {engine.operating_threshold:.2f}`")
-else:
-    st.sidebar.error("- **Production Model:** Missing / Unloaded")
+available_models = registry.list_models(only_available=True)
+all_models = registry.list_models()
+
+st.sidebar.markdown("**System Health & Model Registry:**")
+st.sidebar.markdown(f"- **Available Models:** `{len(available_models)} / {len(all_models)} active`")
+st.sidebar.markdown(f"- **Primary Default:** Random Forest (`v1.0.0`)")
 st.sidebar.markdown(f"- **Telemetry Dataset:** `{'ai4i2020.csv (10k rows)' if dataset_found else 'Missing'}`")
 st.sidebar.markdown(f"- **Host Runtime:** Python `{sys.version.split()[0]}`")
 
 st.sidebar.markdown("---")
-st.sidebar.caption("KnowledgeFabric Decision Support • v1.0.0")
+st.sidebar.caption("MachineGuard Intelligence • Decision Support v2.0.0")
 
 
 # ============================================================================
@@ -116,26 +118,76 @@ st.sidebar.caption("KnowledgeFabric Decision Support • v1.0.0")
 if nav_selection == "🛡️ Machine Assessment":
     st.title("🛡️ Machine Assessment & Risk Intelligence")
     st.markdown(
-        "Evaluate operating machine sensor telemetry in real time. MachineGuard validates inputs, executes "
-        "inference against the persisted production model without retraining, and presents risk tiers, "
-        "concrete local feature evidence, and actionable maintenance protocols."
+        "Evaluate operating machine sensor telemetry in real time. **Explicitly select which ML or DL model to use**, "
+        "review physical inputs, execute inference against persisted artifacts without retraining, and view model-specific "
+        "probabilities, risk tiers, and validated explanations."
     )
 
-    # Graceful degradation alert if model is missing
-    if not engine.is_loaded:
-        st.error(f"⚠️ Production Model Artifact Not Available: {engine.load_error}")
+    # Model selection catalog options
+    model_display_map = {
+        "Random Forest Classifier (ML — Production Default)": "random_forest",
+        "Gradient Boosting Classifier (ML)": "gradient_boosting",
+        "Logistic Regression (ML — Balanced)": "logistic_regression",
+        "1D Convolutional Neural Network (DL — PyTorch)": "cnn_1d"
+    }
+
+    # Model Selection UI Section
+    st.markdown("### 🤖 Select Prediction Model")
+    st.caption("Choose the machine learning or deep learning architecture that will execute inference for this assessment:")
+
+    col_m_select, col_m_card = st.columns([1, 1])
+
+    with col_m_select:
+        selected_display_label = st.selectbox(
+            "Active Prediction Model:",
+            options=list(model_display_map.keys()),
+            index=0,
+            help="Select the model architecture to perform actual telemetry inference."
+        )
+        selected_model_id = model_display_map[selected_display_label]
+        model_info = registry.get_model_info(selected_model_id)
+
+    with col_m_card:
+        # Informational Model Card
+        badge_color = "#3B82F6" if model_info["model_type"] == "ML" else "#8B5CF6"
+        st.markdown(
+            f"""
+            <div style="background-color: #0F172A; border-left: 4px solid {badge_color}; padding: 12px; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="color: #F8FAFC; font-size: 1.05rem;">{model_info['display_name']}</strong>
+                    <span style="background-color: {badge_color}; color: #FFFFFF; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: bold;">
+                        {model_info['model_type']}
+                    </span>
+                </div>
+                <p style="margin: 6px 0 4px 0; color: #CBD5E1; font-size: 0.85rem;">
+                    <strong>Architecture:</strong> {model_info['description']}
+                </p>
+                <p style="margin: 2px 0 4px 0; color: #94A3B8; font-size: 0.82rem;">
+                    <strong>Predicts:</strong> {model_info['prediction_task']}
+                </p>
+                <p style="margin: 2px 0 0 0; color: #F59E0B; font-size: 0.80rem;">
+                    <strong>⚠️ Known Limitation:</strong> {model_info['limitations']}
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # Check if selected model is available
+    if not model_info["is_available"]:
+        st.error(f"❌ Model Artifact Unavailable: {model_info['load_error']}")
         if dataset_found:
-            col_tr1, _ = st.columns([1, 2])
-            with col_tr1:
-                if st.button("🚀 Train & Persist Production Model Artifacts Now"):
-                    with st.spinner("Training production models on data/raw/ai4i2020.csv..."):
-                        from modules import model_trainer
-                        model_trainer.train_and_persist_pipeline()
-                        engine = inference.get_inference_engine(force_reload=True)
-                        st.success("Model successfully trained and persisted to artifacts/models/production_model.joblib!")
-                        st.rerun()
+            if st.button(f"🚀 Train & Persist Artifacts for {model_info['display_name']}"):
+                with st.spinner("Training models on data/raw/ai4i2020.csv..."):
+                    from modules import model_trainer
+                    model_trainer.train_and_persist_pipeline()
+                    st.success("Artifacts generated! Reloading page...")
+                    st.rerun()
         else:
-            st.info("To initialize the model, place `ai4i2020.csv` in `data/raw/` and execute: `python -m modules.model_trainer`")
+            st.info("Place `ai4i2020.csv` in `data/raw/` and run `python -m modules.model_trainer` to build model artifacts.")
+
+    # Instantiate the selected model's inference engine
+    active_engine = registry.get_engine(selected_model_id)
 
     tab_single, tab_batch = st.tabs(["⚙️ Single Machine Assessment", "📂 Batch Assessment (CSV Upload)"])
 
@@ -143,7 +195,7 @@ if nav_selection == "🛡️ Machine Assessment":
     with tab_single:
         col_form, col_quick = st.columns([2, 1])
 
-        # Preset Demonstration Profiles (Clearly labeled as demonstration records)
+        # Preset Demonstration Profiles
         with col_quick:
             st.markdown("#### 🧪 Demonstration Profiles")
             st.caption("Load verified test-set conditions to evaluate model decision dynamics:")
@@ -177,7 +229,7 @@ if nav_selection == "🛡️ Machine Assessment":
                 preset_data = {"Type": "H", "Air temperature [K]": 304.0, "Process temperature [K]": 311.5, "Rotational speed [rpm]": 1340.0, "Torque [Nm]": 58.0, "Tool wear [min]": 180.0}
 
             if preset_choice != "Custom Input":
-                st.info(f"Loaded demo profile: **{preset_choice}** (Sample from known operational envelope).")
+                st.info(f"Loaded demo profile: **{preset_choice}**.")
 
         with col_form:
             st.markdown("#### 📥 Machine Telemetry Inputs")
@@ -231,14 +283,14 @@ if nav_selection == "🛡️ Machine Assessment":
                     )
 
                 threshold_slider = st.slider(
-                    "Decision Threshold Sensitivity (Operating Point)",
+                    f"Decision Threshold Sensitivity ({model_info['display_name']})",
                     min_value=0.10, max_value=0.90,
-                    value=float(engine.operating_threshold),
+                    value=float(active_engine.operating_threshold),
                     step=0.05,
-                    help="Default: 0.35. Lower values prioritize safety/recall (fewer missed failures); higher values prioritize precision."
+                    help=f"Configured operational threshold for {model_info['display_name']} is {model_info['operating_threshold']:.2f}."
                 )
 
-                submit_btn = st.form_submit_button("⚡ Assess Machine Condition", use_container_width=True)
+                submit_btn = st.form_submit_button(f"⚡ Run Prediction with {model_info['display_name']}", use_container_width=True)
 
         if submit_btn:
             raw_input_dict = {
@@ -251,148 +303,234 @@ if nav_selection == "🛡️ Machine Assessment":
             }
 
             # 1. Validate
-            is_valid, err_msg, validated_df = engine.validate_input(raw_input_dict)
-            if not engine.is_loaded:
-                st.error("❌ Cannot assess machine: Production model artifact is not loaded. Please train or load the model first.")
+            is_valid, err_msg, validated_df = active_engine.validate_input(raw_input_dict)
+            if not active_engine.is_loaded:
+                st.error(f"❌ Cannot assess machine: {model_info['display_name']} is not loaded. {active_engine.load_error}")
             elif not is_valid:
                 st.error(f"❌ Input Validation Error: {err_msg}")
             else:
-                # 2. Run Inference
+                # 2. Run Inference using the explicitly selected model
                 try:
-                    res = engine.predict_single(raw_input_dict, custom_threshold=threshold_slider)
+                    res = active_engine.predict_single(raw_input_dict, custom_threshold=threshold_slider)
                     decision = decision_layer.assess_operational_decision(res)
 
-                    # 3. Log into History
+                    # 3. Log into History with full model identification
                     hist_mgr.add_record(
                         machine_id=machine_id_input,
                         inputs=raw_input_dict,
                         inference_result=res,
                         decision_result=decision,
-                        source=preset_choice if preset_choice != "Custom Input" else "Manual Form"
+                        source=preset_choice if preset_choice != "Custom Input" else "Manual Form",
+                        model_id=selected_model_id
                     )
 
-                    st.markdown("---")
-                    st.subheader(f"📊 Assessment Outcome — {machine_id_input}")
-
-                    # Header KPI Cards
-                    k1, k2, k3, k4 = st.columns(4)
-                    with k1:
-                        st.metric(
-                            label="Predicted Condition",
-                            value="FAILURE RISK" if res["prediction"] == 1 else "NORMAL HEALTH",
-                            delta=f"P(Fail): {res['failure_probability']*100:.1f}%",
-                            delta_color="inverse" if res["prediction"] == 1 else "normal"
-                        )
-                    with k2:
-                        st.metric(
-                            label="Risk Tier",
-                            value=decision["risk_tier"],
-                            delta=f"Urgency: {decision['urgency']}"
-                        )
-                    with k3:
-                        st.metric(
-                            label="Operating Threshold",
-                            value=f"{threshold_slider:.2f}",
-                            delta=f"Model: {res['model_name']}"
-                        )
-                    with k4:
-                        st.metric(
-                            label="Cost Recommendation",
-                            value=decision["economic_context"]["recommendation"],
-                            delta=f"Exp Risk: ${decision['economic_context']['expected_cost_inaction']:.0f}"
-                        )
-
-                    # Primary Recommended Action Box
-                    if decision["risk_tier"] in ("CRITICAL", "ELEVATED"):
-                        st.error(f"🚨 **Required Action:** {decision['primary_action']}")
-                    elif decision["risk_tier"] == "MONITORING":
-                        st.warning(f"⚠️ **Recommended Action:** {decision['primary_action']}")
-                    else:
-                        st.success(f"✅ **Recommended Action:** {decision['primary_action']}")
-
-                    # Deep Dive Columns
-                    col_expl, col_action = st.columns([1, 1])
-
-                    with col_expl:
-                        st.markdown("#### 🔍 Real-Model Feature Attribution")
-                        st.caption("Exact tree-path probability deltas from the production Random Forest:")
-                        fig_contrib = interpretability.plot_local_feature_contributions(
-                            res["feature_contributions"],
-                            title=f"Feature Impact for {machine_id_input}"
-                        )
-                        st.pyplot(fig_contrib)
-
-                        if decision["top_contributing_factors"]:
-                            st.markdown("**Leading Failure Drivers:**")
-                            for factor in decision["top_contributing_factors"]:
-                                st.markdown(f"- **{factor['feature']}** (`{factor['current_value']}`): {factor['impact']}")
-
-                    with col_action:
-                        st.markdown("#### 🛠️ Physical Diagnosis & Maintenance Protocol")
-                        if decision["domain_evidence"]:
-                            st.markdown("**Physical Anomalies Observed:**")
-                            for note in decision["domain_evidence"]:
-                                st.markdown(f"- {note}")
-
-                        st.markdown("**Actionable Inspection Protocol:**")
-                        for check in decision["recommended_checks"]:
-                            st.markdown(f"- 🔧 {check}")
-
-                        if decision["suggested_maintenance_plan"]:
-                            with st.expander("📋 View Structured Maintenance Execution Plan"):
-                                for step in decision["suggested_maintenance_plan"]:
-                                    st.markdown(step)
-
-                        st.markdown("**⚠️ Model Confidence & Limitations:**")
-                        for lim in decision["limitations"]:
-                            st.caption(f"• {lim}")
-
-                    # Counterfactual What-If Simulator
-                    st.markdown("---")
-                    st.markdown("### 🎛️ Counterfactual What-If Simulator")
-                    st.caption("Simulate sensitivity: Adjust a sensor reading to see how the model's prediction changes across its operating range.")
-                    
-                    sim_col1, sim_col2 = st.columns([1, 2])
-                    with sim_col1:
-                        feature_to_sim = st.selectbox(
-                            "Select Sensor to Vary:",
-                            [
-                                "Tool wear [min]",
-                                "Torque [Nm]",
-                                "Rotational speed [rpm]",
-                                "Air temperature [K]",
-                                "Process temperature [K]"
-                            ]
-                        )
-                        bounds_map = {
-                            "Tool wear [min]": (0.0, 260.0),
-                            "Torque [Nm]": (10.0, 80.0),
-                            "Rotational speed [rpm]": (1100.0, 2800.0),
-                            "Air temperature [K]": (295.0, 305.0),
-                            "Process temperature [K]": (305.0, 315.0)
-                        }
-                        low_b, high_b = bounds_map[feature_to_sim]
-
-                    with sim_col2:
-                        fig_sim, _ = interpretability.plot_what_if_sensitivity(
-                            engine=engine,
-                            base_input=raw_input_dict,
-                            feature_to_vary=feature_to_sim,
-                            min_val=low_b,
-                            max_val=high_b
-                        )
-                        st.pyplot(fig_sim)
+                    # Store in session state for comparison and simulation continuity
+                    st.session_state["last_assessment_input"] = raw_input_dict
+                    st.session_state["last_assessment_result"] = res
+                    st.session_state["last_assessment_decision"] = decision
+                    st.session_state["last_machine_id"] = machine_id_input
 
                 except Exception as ex:
-                    st.error(f"Inference Failure: {str(ex)}")
+                    st.error(f"Inference Failure for {model_info['display_name']}: {str(ex)}")
+
+        # Display results if available in session state
+        if "last_assessment_result" in st.session_state:
+            res = st.session_state["last_assessment_result"]
+            decision = st.session_state["last_assessment_decision"]
+            raw_input_dict = st.session_state["last_assessment_input"]
+            m_id_display = st.session_state.get("last_machine_id", "CNC-UNIT")
+
+            st.markdown("---")
+            st.subheader(f"📊 Assessment Outcome — {m_id_display}")
+
+            # Active Model Callout Bar
+            st.info(
+                f"Inference Model: **{res['model_name']}** (`{res['model_type']}`) • "
+                f"Model ID: `{res['model_id']}` • Operating Threshold: `{res['operating_threshold']:.2f}`"
+            )
+
+            # Header KPI Cards
+            k1, k2, k3, k4 = st.columns(4)
+            with k1:
+                st.metric(
+                    label="Predicted Condition",
+                    value="FAILURE RISK" if res["prediction"] == 1 else "NORMAL HEALTH",
+                    delta=f"P(Fail): {res['failure_probability']*100:.1f}%",
+                    delta_color="inverse" if res["prediction"] == 1 else "normal"
+                )
+            with k2:
+                st.metric(
+                    label="Risk Tier",
+                    value=decision["risk_tier"],
+                    delta=f"Urgency: {decision['urgency']}"
+                )
+            with k3:
+                st.metric(
+                    label="Operating Threshold",
+                    value=f"{res['operating_threshold']:.2f}",
+                    delta=f"Type: {res['model_type']}"
+                )
+            with k4:
+                st.metric(
+                    label="Cost Recommendation",
+                    value=decision["economic_context"]["recommendation"],
+                    delta=f"Exp Risk: ${decision['economic_context']['expected_cost_inaction']:.0f}"
+                )
+
+            # Primary Recommended Action Box
+            if decision["risk_tier"] in ("CRITICAL", "ELEVATED"):
+                st.error(f"🚨 **Required Action:** {decision['primary_action']}")
+            elif decision["risk_tier"] == "MONITORING":
+                st.warning(f"⚠️ **Recommended Action:** {decision['primary_action']}")
+            else:
+                st.success(f"✅ **Recommended Action:** {decision['primary_action']}")
+
+            # Deep Dive Columns: Model-Specific Explainability
+            col_expl, col_action = st.columns([1, 1])
+
+            with col_expl:
+                st.markdown(f"#### 🔍 Model-Specific Explainability ({res['model_name']})")
+
+                if res.get("explanation_type") == "conv_activations":
+                    st.caption("Intermediate Conv1D Layer 1 feature activations across feature dimensions:")
+                    if res.get("conv_activations"):
+                        c1 = res["conv_activations"]["conv1d_1"]
+                        fig_act = interpretability.plot_activation_heatmap(c1, "Conv1D Layer 1 (32 Filters)")
+                        st.pyplot(fig_act)
+                    st.info(
+                        "ℹ️ **Architecture Limitation:** Tree-path attribution does not apply to Convolutional Neural Networks. "
+                        "Hierarchical layer activation maps and counterfactual sensitivity are presented instead."
+                    )
+                else:
+                    expl_title = "Local Feature Contributions (Delta in P(Fail))" if "forest" in res['model_name'].lower() else "Feature Contributions (Log-Odds Impact)"
+                    st.caption(f"{expl_title} for {res['model_name']}:")
+                    fig_contrib = interpretability.plot_local_feature_contributions(
+                        res["feature_contributions"],
+                        title=f"Feature Contributions — {res['model_name']}"
+                    )
+                    st.pyplot(fig_contrib)
+
+                    if decision["top_contributing_factors"]:
+                        st.markdown("**Leading Failure Drivers:**")
+                        for factor in decision["top_contributing_factors"]:
+                            st.markdown(f"- **{factor['feature']}** (`{factor['current_value']}`): {factor['impact']}")
+
+            with col_action:
+                st.markdown("#### 🛠️ Physical Diagnosis & Maintenance Protocol")
+                if decision["domain_evidence"]:
+                    st.markdown("**Physical Anomalies Observed:**")
+                    for note in decision["domain_evidence"]:
+                        st.markdown(f"- {note}")
+
+                st.markdown("**Actionable Inspection Protocol:**")
+                for check in decision["recommended_checks"]:
+                    st.markdown(f"- 🔧 {check}")
+
+                if decision["suggested_maintenance_plan"]:
+                    with st.expander("📋 View Structured Maintenance Execution Plan"):
+                        for step in decision["suggested_maintenance_plan"]:
+                            st.markdown(step)
+
+                st.markdown("**⚠️ Model Confidence & Limitations:**")
+                for lim in decision["limitations"]:
+                    st.caption(f"• {lim}")
+
+            # Counterfactual What-If Simulator (Using Active Selected Model)
+            st.markdown("---")
+            st.markdown(f"### 🎛️ Counterfactual What-If Simulator ({res['model_name']})")
+            st.caption(f"Simulate sensitivity: Recompute inference dynamically through **{res['model_name']}** as physical sensor readings vary.")
+
+            sim_col1, sim_col2 = st.columns([1, 2])
+            with sim_col1:
+                feature_to_sim = st.selectbox(
+                    "Select Sensor to Vary:",
+                    [
+                        "Tool wear [min]",
+                        "Torque [Nm]",
+                        "Rotational speed [rpm]",
+                        "Air temperature [K]",
+                        "Process temperature [K]"
+                    ],
+                    key="what_if_sensor_select"
+                )
+                bounds_map = {
+                    "Tool wear [min]": (0.0, 260.0),
+                    "Torque [Nm]": (10.0, 80.0),
+                    "Rotational speed [rpm]": (1100.0, 2800.0),
+                    "Air temperature [K]": (295.0, 305.0),
+                    "Process temperature [K]": (305.0, 315.0)
+                }
+                low_b, high_b = bounds_map[feature_to_sim]
+
+            with sim_col2:
+                fig_sim, _ = interpretability.plot_what_if_sensitivity(
+                    engine=active_engine,
+                    base_input=raw_input_dict,
+                    feature_to_vary=feature_to_sim,
+                    min_val=low_b,
+                    max_val=high_b
+                )
+                st.pyplot(fig_sim)
+
+            # Optional Multi-Model Comparison Section
+            st.markdown("---")
+            st.markdown("### 🔬 Multi-Model Comparison (Optional)")
+            st.caption("Evaluate this exact telemetry profile against all available ML and DL architectures simultaneously to compare perspectives.")
+
+            compare_enabled = st.checkbox("🔍 Run Side-by-Side Comparison Across All Models", value=False)
+            if compare_enabled:
+                with st.spinner("Evaluating telemetry across all candidate models..."):
+                    comp_results = registry.compare_models(
+                        model_ids=["random_forest", "gradient_boosting", "logistic_regression", "cnn_1d"],
+                        input_data=raw_input_dict
+                    )
+                comp_df = pd.DataFrame(comp_results)
+                st.dataframe(
+                    comp_df[[
+                        "model_name", "model_type", "predicted_outcome",
+                        "failure_probability", "decision_threshold", "risk_tier", "status"
+                    ]],
+                    use_container_width=True
+                )
+
+                st.markdown(
+                    """
+                    **💡 Understanding Model Disagreements:**
+                    - **Tree Ensembles (Random Forest & Gradient Boosting):** Capable of capturing sharp, non-linear interaction thresholds (e.g. torque spikes combined with high tool wear).
+                    - **Linear Model (Logistic Regression):** Constrained to linear decision boundaries; useful for baseline interpretability but may miss compound mechanical faults.
+                    - **Deep Learning (1D CNN):** Learns localized filter representations; does not assume monotonicity. Differences reflect architecture inductive biases on small tabular feature sets.
+                    *No single model is universally correct on an isolated sample; offline held-out PR-AUC on rare failures (3.39%) provides the authoritative statistical benchmark.*
+                    """
+                )
 
     # --- TAB 2: BATCH CSV ASSESSMENT ---
     with tab_batch:
         st.markdown("#### 📂 Batch Telemetry Upload & Evaluation")
         st.markdown(
             "Upload a CSV containing operational machine records. MachineGuard validates each row, applies "
-            "fitted preprocessing without retraining, and outputs risk tiers and probability scores."
+            "fitted preprocessing without retraining, and outputs risk tiers and probability scores using your chosen model."
         )
+
+        col_b_m1, col_b_m2 = st.columns([1, 1])
+        with col_b_m1:
+            batch_model_label = st.selectbox(
+                "Select Model for Batch Assessment:",
+                options=list(model_display_map.keys()),
+                index=0,
+                key="batch_model_selector"
+            )
+            batch_model_id = model_display_map[batch_model_label]
+            batch_model_info = registry.get_model_info(batch_model_id)
+            batch_engine = registry.get_engine(batch_model_id)
+
+        with col_b_m2:
+            batch_th_slider = st.slider(
+                f"Batch Operating Threshold ({batch_model_info['display_name']}):",
+                min_value=0.10, max_value=0.90,
+                value=float(batch_engine.operating_threshold),
+                step=0.05,
+                key="batch_threshold_slider"
+            )
 
         uploaded_batch = st.file_uploader("Upload Batch CSV", type=["csv"], key="batch_uploader")
 
@@ -401,7 +539,6 @@ if nav_selection == "🛡️ Machine Assessment":
             if st.button("📥 Load 25 Unseen Held-Out Test Records for Demonstration"):
                 test_artifact_path = config.MODELS_DIR / "test_set_split.joblib"
                 if test_artifact_path.exists():
-                    import joblib
                     test_split = joblib.load(test_artifact_path)
                     sample_batch_df = test_split["X_test"].head(25).copy()
                     st.session_state["demo_batch_df"] = sample_batch_df
@@ -422,13 +559,13 @@ if nav_selection == "🛡️ Machine Assessment":
         if batch_to_process is not None:
             st.dataframe(batch_to_process.head(5), use_container_width=True)
 
-            if st.button("🚀 Execute Batch Inference"):
-                if not engine.is_loaded:
-                    st.error("❌ Cannot execute batch inference: Production model artifact is not loaded. Please train or load the model first.")
+            if st.button(f"🚀 Execute Batch Inference with {batch_model_info['display_name']}"):
+                if not batch_engine.is_loaded:
+                    st.error(f"❌ Cannot execute batch inference: {batch_model_info['display_name']} artifact is not loaded.")
                 else:
                     try:
-                        with st.spinner("Processing batch inference..."):
-                            batch_results = engine.predict_batch(batch_to_process)
+                        with st.spinner(f"Processing batch inference using {batch_model_info['display_name']}..."):
+                            batch_results = batch_engine.predict_batch_robust(batch_to_process, custom_threshold=batch_th_slider)
 
                         st.markdown("### 📈 Batch Assessment Summary")
                         b1, b2, b3, b4 = st.columns(4)
@@ -446,21 +583,21 @@ if nav_selection == "🛡️ Machine Assessment":
                         with b4:
                             st.metric("Nominal Health", int(nominal_count))
 
-                        st.dataframe(
-                            batch_results[[
-                                "Type", "Air temperature [K]", "Process temperature [K]",
+                        display_cols = [
+                            c for c in [
+                                "Selected_Model", "Model_Type", "Type", "Air temperature [K]", "Process temperature [K]",
                                 "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]",
-                                "Failure_Probability", "Risk_Level"
-                            ]],
-                            use_container_width=True
-                        )
+                                "Failure_Probability", "Risk_Level", "Prediction_Status"
+                            ] if c in batch_results.columns
+                        ]
+                        st.dataframe(batch_results[display_cols], use_container_width=True)
 
                         # CSV Export
                         csv_data = batch_results.to_csv(index=False).encode("utf-8")
                         st.download_button(
-                            label="📥 Export Assessment Results (CSV)",
+                            label=f"📥 Export Batch Results for {batch_model_info['display_name']} (CSV)",
                             data=csv_data,
-                            file_name="machineguard_batch_assessment.csv",
+                            file_name=f"machineguard_batch_{batch_model_id}.csv",
                             mime="text/csv"
                         )
                     except Exception as e:
@@ -474,26 +611,37 @@ elif nav_selection == "📋 Assessment History":
     st.title("📋 Operational Assessment History")
     st.markdown(
         "Chronological log of machine assessments evaluated during active sessions and persisted to disk. "
-        "Enables auditing, accountability, and temporal pattern tracking."
+        "Enables auditing, accountability, and temporal pattern tracking across different models."
     )
 
-    history_df = hist_mgr.get_history_dataframe()
+    col_filter, _ = st.columns([1, 1])
+    with col_filter:
+        model_filter_options = [
+            "All Models",
+            "Random Forest Classifier",
+            "Gradient Boosting Classifier",
+            "Logistic Regression (Balanced)",
+            "1D Convolutional Neural Network (CNN)"
+        ]
+        chosen_filter = st.selectbox("Filter History by Model:", model_filter_options, index=0)
+
+    history_df = hist_mgr.get_history_dataframe(model_filter=chosen_filter)
 
     if history_df.empty:
-        st.info("No assessments recorded yet. Run an assessment on the **Machine Assessment** tab to populate.")
+        st.info("No assessments recorded matching the selected filter. Run an assessment on the **Machine Assessment** tab to populate.")
     else:
         col_stats1, col_stats2, col_stats3, col_clear = st.columns([1, 1, 1, 1])
-        tier_col = "Risk Tier" if "Risk Tier" in history_df.columns else ("Risk_Tier" if "Risk_Tier" in history_df.columns else None)
+        tier_col = "Risk Tier" if "Risk Tier" in history_df.columns else "Risk_Tier"
         with col_stats1:
-            st.metric("Total Assessments Logged", len(history_df))
+            st.metric("Assessments Displayed", len(history_df))
         with col_stats2:
-            critical_logged = (history_df[tier_col] == "CRITICAL").sum() if tier_col else 0
-            st.metric("Critical Alerts Logged", int(critical_logged))
+            critical_logged = (history_df[tier_col] == "CRITICAL").sum()
+            st.metric("Critical Alerts", int(critical_logged))
         with col_stats3:
-            elevated_logged = (history_df[tier_col] == "ELEVATED").sum() if tier_col else 0
-            st.metric("Elevated Alerts Logged", int(elevated_logged))
+            elevated_logged = (history_df[tier_col] == "ELEVATED").sum()
+            st.metric("Elevated Alerts", int(elevated_logged))
         with col_clear:
-            if st.button("🗑️ Clear History"):
+            if st.button("🗑️ Clear Stored History"):
                 hist_mgr.clear_history()
                 st.rerun()
 
@@ -503,7 +651,7 @@ elif nav_selection == "📋 Assessment History":
         # CSV Download
         csv_hist = history_df.to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="📥 Download Complete Audit History (CSV)",
+            label="📥 Download Audit History (CSV)",
             data=csv_hist,
             file_name="machineguard_audit_history.csv",
             mime="text/csv"
@@ -517,7 +665,7 @@ elif nav_selection == "📊 Model Performance":
     st.title("📊 Model Performance & Leakage-Free Validation")
     st.markdown(
         "Rigorous held-out test evaluation on the AI4I 2020 predictive maintenance benchmark. "
-        "All metrics reported are calculated strictly from an untouched test partition (2,000 samples, 20% split) "
+        "All metrics reported are calculated strictly from an untouched test partition (2,000 samples, 20% stratified split) "
         "with complete target leakage exclusion."
     )
 
@@ -526,106 +674,140 @@ elif nav_selection == "📊 Model Performance":
     op_metrics = mg_meta.get("metrics_at_operating_threshold", {})
     all_models = mg_meta.get("all_model_evaluations", {})
 
-    st.subheader("1. Primary Production Model: Random Forest (Held-Out Test Set)")
-    st.markdown(
-        "Evaluated on **2,000 held-out test samples** (68 failures, 1,932 normal units, stratified 80/20 split) "
-        "with complete target leakage exclusion (no failure mode indicators)."
+    st.markdown("### 🔍 Select Model to Inspect")
+    perf_model_choice = st.selectbox(
+        "Select Model Architecture for Performance Details:",
+        [
+            "Random Forest Classifier (Production Default)",
+            "Gradient Boosting Classifier",
+            "Logistic Regression (Balanced)",
+            "1D Convolutional Neural Network (CNN)",
+            "Compare All Models (Benchmark Matrix)"
+        ],
+        index=0
     )
 
-    st.markdown("##### Standard Evaluation (Decision Threshold = 0.50)")
-    col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-    with col_m1:
-        st.metric("ROC-AUC", f"{held_out.get('roc_auc', 0.9696):.4f}")
-    with col_m2:
-        st.metric("PR-AUC", f"{held_out.get('pr_auc', 0.7305):.4f}")
-    with col_m3:
-        st.metric("F1-Score", f"{held_out.get('f1_score', 0.6667):.4f}")
-    with col_m4:
-        st.metric("Recall (Sensitivity)", f"{held_out.get('recall', 0.6324):.4f}")
-    with col_m5:
-        st.metric("Precision", f"{held_out.get('precision', 0.7049):.4f}")
+    name_mapping = {
+        "Random Forest Classifier (Production Default)": "Random Forest",
+        "Gradient Boosting Classifier": "Gradient Boosting",
+        "Logistic Regression (Balanced)": "Logistic Regression (Balanced)",
+        "1D Convolutional Neural Network (CNN)": "1D CNN"
+    }
 
-    st.markdown("##### Calibrated Operational Point (Operating Threshold = 0.35)")
-    st.caption("Safety-biased operating point configured to minimize catastrophic equipment breakdown:")
-    col_o1, col_o2, col_o3, col_o4 = st.columns(4)
-    with col_o1:
-        st.metric("Operational Recall", f"{op_metrics.get('recall', 0.7647)*100:.1f}%", delta="+13.2% vs 0.50 threshold")
-    with col_o2:
-        st.metric("Operational Precision", f"{op_metrics.get('precision', 0.6047)*100:.1f}%")
-    with col_o3:
-        st.metric("Missed Failures (FN)", int(op_metrics.get('fn', 16)), delta="-9 missed breakdowns", delta_color="normal")
-    with col_o4:
-        st.metric("Caught Failures (TP)", f"{int(op_metrics.get('tp', 52))} / 68")
+    if perf_model_choice in name_mapping:
+        target_name = name_mapping[perf_model_choice]
+        m_eval = all_models.get(target_name, {})
 
-    st.markdown("---")
-    st.subheader("2. Comparative Evaluation Across Candidate Classifiers (Held-Out Test Set)")
-    st.caption("All models trained and tested on the exact same train/test split (8,000 train / 2,000 test):")
+        st.subheader(f"Performance Overview: {perf_model_choice}")
+        st.caption("Evaluated on 2,000 held-out test samples (68 failures, 1,932 normal units, stratified 80/20 split):")
 
-    if all_models:
-        rows = []
-        for model_name, metrics in all_models.items():
-            cm = metrics.get("confusion_matrix", {})
-            rows.append({
-                "Model": model_name,
-                "ROC-AUC": metrics.get("roc_auc"),
-                "PR-AUC": metrics.get("pr_auc"),
-                "F1-Score": metrics.get("f1_score"),
-                "Precision": metrics.get("precision"),
-                "Recall": metrics.get("recall"),
-                "Accuracy": metrics.get("accuracy"),
-                "TP": cm.get("tp"),
-                "FP": cm.get("fp"),
-                "FN": cm.get("fn"),
-                "TN": cm.get("tn")
-            })
-        comp_df = pd.DataFrame(rows).sort_values(by="PR-AUC", ascending=False).reset_index(drop=True)
-        st.dataframe(comp_df, use_container_width=True)
+        c1, c2, c3, c4, c5 = st.columns(5)
+        with c1:
+            st.metric("ROC-AUC", f"{m_eval.get('roc_auc', 0.0):.4f}")
+        with c2:
+            st.metric("PR-AUC", f"{m_eval.get('pr_auc', 0.0):.4f}")
+        with c3:
+            st.metric("F1-Score", f"{m_eval.get('f1_score', 0.0):.4f}")
+        with c4:
+            st.metric("Recall (Sensitivity)", f"{m_eval.get('recall', 0.0):.4f}")
+        with c5:
+            st.metric("Precision", f"{m_eval.get('precision', 0.0):.4f}")
 
-    col_cm, col_trade = st.columns(2)
-    with col_cm:
-        st.subheader("Confusion Matrix (Default Threshold 0.50)")
-        cm_data = held_out.get("confusion_matrix", {"tn": 1915, "fp": 17, "fn": 21, "tp": 47})
-        cm_matrix = np.array([
-            [cm_data.get("tn", 1915), cm_data.get("fp", 17)],
-            [cm_data.get("fn", 21), cm_data.get("tp", 47)]
-        ])
-        fig_cm, ax_cm = plt.subplots(figsize=(4.5, 3.5))
-        sns.heatmap(cm_matrix, annot=True, fmt="d", cmap="Blues", cbar=False, ax=ax_cm,
-                    xticklabels=["Normal (0)", "Failure (1)"], yticklabels=["Normal (0)", "Failure (1)"])
-        ax_cm.set_xlabel("Predicted Class", fontsize=9, fontweight="bold")
-        ax_cm.set_ylabel("True Class", fontsize=9, fontweight="bold")
-        ax_cm.set_title("Held-Out Test Set Confusion Matrix", fontsize=10, fontweight="bold")
-        fig_cm.tight_layout()
-        st.pyplot(fig_cm)
+        col_cm, col_desc = st.columns(2)
+        with col_cm:
+            st.markdown("##### Confusion Matrix (Held-Out Test Set)")
+            cm_dict = m_eval.get("confusion_matrix", {"tn": 0, "fp": 0, "fn": 0, "tp": 0})
+            cm_matrix = np.array([
+                [cm_dict.get("tn", 0), cm_dict.get("fp", 0)],
+                [cm_dict.get("fn", 0), cm_dict.get("tp", 0)]
+            ])
+            fig_cm, ax_cm = plt.subplots(figsize=(4.5, 3.5))
+            sns.heatmap(cm_matrix, annot=True, fmt="d", cmap="Blues", cbar=False, ax=ax_cm,
+                        xticklabels=["Normal (0)", "Failure (1)"], yticklabels=["Normal (0)", "Failure (1)"])
+            ax_cm.set_xlabel("Predicted Class", fontsize=9, fontweight="bold")
+            ax_cm.set_ylabel("True Class", fontsize=9, fontweight="bold")
+            ax_cm.set_title(f"Confusion Matrix — {target_name}", fontsize=10, fontweight="bold")
+            fig_cm.tight_layout()
+            st.pyplot(fig_cm)
 
-    with col_trade:
-        st.subheader("Decision Threshold Sensitivity & Tradeoffs")
-        st.caption("Impact of operating threshold on Safety (Recall) vs False Alarms (Precision):")
-        tradeoffs = mg_meta.get("threshold_tradeoffs", {})
-        if tradeoffs:
-            trade_rows = []
-            for th_val, t_metrics in tradeoffs.items():
-                trade_rows.append({
-                    "Threshold": float(th_val),
-                    "Precision": t_metrics["precision"],
-                    "Recall": t_metrics["recall"],
-                    "F1": t_metrics["f1_score"],
-                    "Missed Failures (FN)": t_metrics["fn"],
-                    "False Alarms (FP)": t_metrics["fp"]
+        with col_desc:
+            st.markdown("##### Architecture Evaluation Notes")
+            if target_name == "Random Forest":
+                st.markdown(
+                    """
+                    - **Production Default:** Chosen as production model because of its balanced PR-AUC (`0.7305`) on the imbalanced failure class.
+                    - **Threshold Optimization:** At threshold `0.35`, recall increases to `76.5%` reducing missed breakdowns from 25 to 16.
+                    - **Interpretability:** Fully supports exact tree-path probability attribution.
+                    """
+                )
+            elif target_name == "Gradient Boosting":
+                st.markdown(
+                    """
+                    - **Highest PR-AUC:** Achieves highest PR-AUC (`0.8080`) and highest precision (`90.6%`) at standard threshold.
+                    - **Sequential Boosting:** 100 shallow trees minimize residual classification loss.
+                    - **Consideration:** Can be slightly more sensitive to extreme sensor outliers than bagging ensembles.
+                    """
+                )
+            elif target_name == "Logistic Regression (Balanced)":
+                st.markdown(
+                    """
+                    - **High Sensitivity Baseline:** Balanced class weighting gives high recall (`82.4%`) but lower precision (`14.1%`).
+                    - **Linear Separation:** Provides clear linear odds ratios, but fails to capture non-linear sensor coupling.
+                    - **Recommended Role:** Baseline transparent comparator for non-linear models.
+                    """
+                )
+            elif target_name == "1D CNN":
+                st.markdown(
+                    """
+                    - **Deep Learning Benchmark:** Achieves high ROC-AUC (`0.9604`) and high sensitivity (`92.7%` recall).
+                    - **Convolutional Abstractions:** 2 Conv1D layers extract multi-channel filter representations.
+                    - **Tabular Constraint:** Without spatial locality in tabular columns, tree ensembles retain superior precision/PR-AUC.
+                    """
+                )
+
+    else:
+        # Comparison Matrix across All Models
+        st.subheader("Benchmark Comparison: All Candidate Models (Held-Out Test Set)")
+        st.caption("All models trained and tested on the exact same stratified 80/20 train/test split (8,000 train / 2,000 test):")
+
+        if all_models:
+            comp_rows = []
+            for name, m_metrics in all_models.items():
+                cm = m_metrics.get("confusion_matrix", {})
+                comp_rows.append({
+                    "Model": name,
+                    "ROC-AUC": m_metrics.get("roc_auc"),
+                    "PR-AUC": m_metrics.get("pr_auc"),
+                    "F1-Score": m_metrics.get("f1_score"),
+                    "Recall": m_metrics.get("recall"),
+                    "Precision": m_metrics.get("precision"),
+                    "Accuracy": m_metrics.get("accuracy"),
+                    "TP": cm.get("tp"),
+                    "FP": cm.get("fp"),
+                    "FN": cm.get("fn"),
+                    "TN": cm.get("tn")
                 })
-            st.dataframe(pd.DataFrame(trade_rows), use_container_width=True)
-            st.info(
-                "💡 **Engineering Tradeoff Note:** Operating at threshold `0.35` (rather than standard `0.50`) increases "
-                "failure detection recall from 63.2% to 76.5% and reduces missed failures from 25 down to 16, "
-                "directly mitigating high-cost breakdown risks while maintaining precision above 60%."
-            )
-            st.caption(
-                "⚠️ **Industrial Reliability Notice:** Offline test-set performance does not establish real-world industrial reliability. "
-                "Models operate as decision-support heuristics requiring human engineering verification prior to maintenance execution."
-            )
+            df_comp = pd.DataFrame(comp_rows).sort_values(by="PR-AUC", ascending=False).reset_index(drop=True)
+            st.dataframe(df_comp, use_container_width=True)
+
+            # Bar plot of PR-AUC and ROC-AUC
+            fig_bar, ax_bar = plt.subplots(figsize=(8, 3.8))
+            x = np.arange(len(df_comp))
+            width = 0.35
+            ax_bar.bar(x - width/2, df_comp["PR-AUC"], width, label="PR-AUC (Precision-Recall)", color="#2563EB")
+            ax_bar.bar(x + width/2, df_comp["ROC-AUC"], width, label="ROC-AUC", color="#10B981")
+            ax_bar.set_xticks(x)
+            ax_bar.set_xticklabels(df_comp["Model"], rotation=15, ha="right", fontsize=9)
+            ax_bar.set_ylabel("Metric Value", fontsize=10)
+            ax_bar.set_title("PR-AUC vs ROC-AUC Across Architectures (Held-Out Test Set)", fontsize=11, fontweight="bold")
+            ax_bar.set_ylim(0.0, 1.05)
+            ax_bar.legend()
+            ax_bar.grid(axis="y", linestyle="--", alpha=0.5)
+            fig_bar.tight_layout()
+            st.pyplot(fig_bar)
 
     st.markdown("---")
-    st.subheader("3. Subgroup Reliability across Machine Quality Types (L, M, H)")
+    st.subheader("Subgroup Reliability across Machine Quality Types (L, M, H)")
     st.caption("Verifying performance consistency across product variants in held-out test data:")
     subgroups = mg_meta.get("subgroup_performance", {})
     if subgroups:

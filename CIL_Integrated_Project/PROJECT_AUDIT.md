@@ -1,109 +1,108 @@
-# KnowledgeFabric / MachineGuard Engineering Audit and Transformation Report
+# MachineGuard Engineering Audit and Model Selection Implementation Report
 
-**Project:** CIL Integrated Project -> **KnowledgeFabric / MachineGuard -- Predictive Maintenance Intelligence**
-**Environment:** Windows PowerShell, Python 3.14.0, Streamlit 1.66.0, Scikit-learn 1.9.1
-**Status:** Product Transformation Complete -- 42 Automated Tests Passing
+**Project:** CIL Integrated Project -> **MachineGuard — Predictive Maintenance Intelligence**
+**Environment:** Windows PowerShell, Python 3.14.0, PyTorch 2.13.0, Scikit-learn 1.8.0, Streamlit 1.58.0
+**Status:** User-Selectable ML/DL Models Fully Operational — 55 Automated Tests Passing (0 Failures)
 
 ---
 
 ## 1. Executive Summary
 
-This report documents the transformation of the coursework repository CIL_Integrated_Project (covering lab Tasks 3-8) into **KnowledgeFabric / MachineGuard**, a production-grade industrial predictive maintenance decision-support platform.
+This report documents the architectural enhancement of **MachineGuard — Predictive Maintenance Intelligence**, elevating user model selection into a central capability. Users can now explicitly choose which Machine Learning (ML) or Deep Learning (DL) model performs inference, compare predictions across models on identical telemetry data, inspect model-specific explanations, execute model-selected batch inference, and filter audit histories by model.
 
-The system addresses the four core operational questions:
-1. **Predicted Failure Risk:** Evaluated instantly via a persisted, leakage-free Random Forest model without runtime retraining.
-2. **Influential Features:** Quantified via exact tree-path decision-delta attributions and interactive what-if sensitivity curves.
-3. **Recommended Actions and Evidence:** Mapped via a dedicated decision layer connecting physical sensor violations to structured maintenance protocols.
-4. **Reliability and Limitations:** Grounded in a held-out test evaluation (2,000 samples, 20% stratified split), class imbalance analysis (3.39% base rate), threshold sensitivity tradeoffs (0.20-0.50), and machine-type subgroup reliability checks.
-
-All original academic notebooks and laboratory experiments (Tasks 3-8) remain preserved in the Experiments section.
+All 4 documented candidate models have been trained, verified, and persisted with leakage-free preprocessing, and evaluated strictly on the common held-out test split (2,000 samples, 20% stratified split).
 
 ---
 
-## 2. Phase 1 Audit: Baseline Findings and Vulnerabilities Identified
+## 2. Model Inventory & Registry Architecture
 
-| Area | Baseline State | Critical Risk Identified | Transformation Resolution |
-| :--- | :--- | :--- | :--- |
-| **Model Retraining** | Retrained dynamically on every Streamlit rerun. | Non-determinism, inefficiency. | Built model_trainer.py to persist production_model.joblib. Runtime uses inference.py without retraining. |
-| **Target Leakage** | Raw dataset includes failure modes: TWF, HDF, PWF, OSF, RNF. | Sum of failure flags accounts for 97.3% of failures; including them creates severe leakage. | All 5 failure mode columns and ID columns excluded from feature space prior to preprocessing. |
-| **Feature Ordering and Scaling** | Inconsistent encoding (LabelEncoder in Task 5 vs. manual one-hot in Task 7). | Mismatched column ordering between training and inference causing silent prediction corruption. | Unified into a fitted ColumnTransformer (StandardScaler on numericals + OneHotEncoder(drop=\'first\') on Type) stored in the model artifact. |
-| **Explainability** | Hardcoded contributions or simulated random noise for activation heatmaps. | Misleading users with fabricated explanations. | Implemented exact tree-path probability delta calculations and an interactive what-if counterfactual simulator. |
-| **Data Splitting** | Metrics reported without verified split tracking or from notebooks. | Accuracy paradox: 96.6% accuracy achievable by predicting 0 failures. | Reproducible stratified 80/20 train/test split (random_state=42) evaluated strictly on held-out test data. |
-| **Environment Crashes** | PyTorch imported without catching Windows DLL OSError (c10.dll/shm.dll). | Streamlit crashed on startup without VC++ Redistributable. | Added graceful (ImportError, OSError) exception handling across all deep learning imports. |
-| **Matplotlib Backend** | Default Tk/TkAgg backend assumed. | TclError crash in headless or broken-tkinter environments during testing. | All modules set matplotlib.use(\'Agg\') before pyplot import. Non-interactive, display-independent. |
-| **Missing Model Fallback** | Engine silently fell back to locate_production_model() even when explicit path supplied. | test_missing_model_controlled_failure failed: fake path was overridden. | Fallback search only applies when no explicit model_path is provided by the caller. |
-| **Error Message Consistency** | predict_single raised load_error directly, which said \'not found\' not \'not loaded\'. | Test assertions on error messages failed. | predict_single and predict_batch prepend \'Production model is not loaded.\' to load_error detail. |
+Centralized in `modules/model_registry.py` and supported via `modules/inference.py`:
 
----
+| Model ID | Display Name | Type | Artifact Path | Operating Threshold | Explanation Technique | Loading Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `random_forest` | **Random Forest Classifier** | **ML** | `artifacts/models/production_model.joblib` | `0.35` (Production Default) | Exact Tree-Path Probability Delta (MDI) | Verified & Loaded |
+| `gradient_boosting` | **Gradient Boosting Classifier** | **ML** | `artifacts/models/gradient_boosting.joblib` | `0.35` | Boosting Stage Leaf Attribution | Verified & Loaded |
+| `logistic_regression` | **Logistic Regression (Balanced)** | **ML** | `artifacts/models/logistic_regression.joblib` | `0.50` | Linear Feature Log-Odds Contributions | Verified & Loaded |
+| `cnn_1d` | **1D Convolutional Neural Network** | **DL** | `artifacts/models/cnn_1d.joblib` | `0.50` | Conv1D Filter Activation Maps & Sensitivity | Verified & Loaded |
 
-## 3. Production Architecture
-
-### 3.1 Model Selection and Rationale
-Candidate models evaluated on the exact same held-out test set (2,000 samples):
-
-| Model | ROC-AUC | PR-AUC | F1 (th=0.35) | Recall | Precision |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Random Forest (Production)** | **0.9696** | **0.7305** | **0.6753** | **0.7647** | **0.6047** |
-| Gradient Boosting | 0.9672 | 0.8080 | 0.7934 | 0.7059 | 0.9057 |
-| Logistic Regression (Balanced) | 0.9069 | 0.3816 | 0.2414 | 0.8235 | 0.1414 |
-| 1D CNN (Experimental) | 0.9800 | 0.5800 | 0.5640 | 0.6470 | 0.5000 |
-
-**Technical Justification:**
-While the 1D CNN achieved strong ROC-AUC, its PR-AUC on rare failures (3.39%) was significantly lower (0.5800 vs. 0.7305 for Random Forest). Tabular physical measurements lack translational invariance; convolving adjacent independent sensor columns is artificial. Random Forest provides superior PR-AUC, fast execution, determinism, and exact tree-path interpretability without requiring GPU runtimes.
-
-### 3.2 Operating Threshold Tuning
-Default threshold of 0.35 (not 0.50) because catastrophic in-service breakdown (~$2,500) far outweighs preventive inspection (~$50). At threshold=0.35: Recall=76.5%, Precision=60.5%, F1=0.6753.
-
-### 3.3 Four-Tier Risk Classification
-Risk tiers standardised across all single and batch workflows via a single authoritative function in decision_layer.py:
-- **CRITICAL:** P(Fail) >= 0.70 -- Immediate controlled shutdown
-- **ELEVATED:** threshold <= P(Fail) < 0.70 -- Schedule inspection within 24h
-- **MONITORING:** 0.5*threshold <= P(Fail) < threshold -- Enhanced telemetry logging
-- **NOMINAL:** P(Fail) < 0.5*threshold -- Standard operating schedule
+### Key Registry Guarantees:
+1. **No Silent Fallback:** If a model fails to load or an artifact is missing, an explicit error is returned; the application never silently substitutes another model.
+2. **Unified Preprocessor:** Preprocessing uses a fitted `ColumnTransformer` (`StandardScaler` on 5 numerical features + `OneHotEncoder(drop='first')` on machine `Type`), strictly preventing target leakage and training-serving skew.
+3. **Inference Cache:** Engines are memoized in memory by `(model_id, path)`, eliminating disk I/O latency during Streamlit reruns.
 
 ---
 
-## 4. Validation, Ethics, and Subgroup Reliability
+## 3. Verified Benchmark Metrics (Common Held-Out Test Set, 2,000 samples)
 
-### 4.1 Subgroup Performance Across Machine Variants (at threshold=0.35)
-| Variant | Samples | Failures | Recall | Precision | F1 |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| L (Low) | 1,170 | 38 | 0.7632 | 0.5686 | 0.6517 |
-| M (Medium) | 616 | 25 | 0.8000 | 0.7143 | 0.7547 |
-| H (High) | 214 | 5 | 0.6000 | 0.4286 | 0.5000 |
+All models evaluated strictly on the untouched held-out test partition (2,000 samples, 68 true failures, 3.39% base rate):
 
-### 4.2 Ethics and Operational Guardrails
-- **Decision Support Only:** MachineGuard issues guidance, not autonomous equipment shutdowns.
-- **Explainability as Evidence:** Attributions reflect statistical model influence, not definitive physical causation.
-- **Synthetic Data Caveat:** Model trained on AI4I 2020 synthetic dataset; domain shift to real-world industrial data must be assessed before deployment.
+| Model Architecture | ROC-AUC | PR-AUC | F1-Score | Recall | Precision | Accuracy | Conf. Matrix (TN, FP, FN, TP) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Gradient Boosting** | **0.9672** | **0.8080** | **0.7934** | **0.7059** | **0.9057** | **0.9875** | `[1927, 5, 20, 48]` |
+| **Random Forest (Production)** | **0.9696** | **0.7305** | **0.6753** | **0.7647** | **0.6047** | **0.9785** | `[1914, 18, 25, 43]` (th=0.50: `[1898, 34, 16, 52]` at th=0.35) |
+| **1D CNN (PyTorch)** | **0.9604** | **0.5153** | **0.3158** | **0.9265** | **0.1903** | **0.8635** | `[1664, 268, 5, 63]` |
+| **Logistic Regression (Balanced)** | **0.9069** | **0.3816** | **0.2414** | **0.8235** | **0.1414** | **0.8240** | `[1592, 340, 12, 56]` |
+
+### Architectural Insights & Inductive Biases:
+- **Gradient Boosting:** Achieves the highest PR-AUC (`0.8080`) and precision (`90.6%`), effectively isolating severe breakdown signatures with minimal false alarms.
+- **Random Forest:** Selected as production default for its balanced PR-AUC (`0.7305`) and stable ensemble variance. Operating at threshold `0.35` increases recall from `63.2%` to `76.5%`, reducing missed breakdowns from 25 to 16.
+- **1D CNN:** PyTorch implementation achieves high sensitivity (`92.7%` recall, catching 63 of 68 failures) but incurs higher false alarms due to the lack of spatial locality across tabular sensor columns.
+- **Logistic Regression:** Linear decision boundary provides transparent odds ratios but cannot capture compound multi-sensor failures (e.g. simultaneous high torque and high tool wear).
 
 ---
 
-## 5. Automated Test Suite Verification (Final State)
+## 4. Implemented Product Features
 
-**42 tests, 0 failures:**
+1. **User-Facing Model Selector:**
+   - Grouped into Machine Learning (ML) and Deep Learning (DL).
+   - Dynamic informational card displaying model architecture, prediction target, and operational limitations.
+   - Active model indicator visible across the entire assessment session.
+2. **Model-Specific Explainability:**
+   - **Random Forest & Gradient Boosting:** Exact tree-path probability deltas and leaf attribution bar charts.
+   - **Logistic Regression:** Scaled linear feature contributions to log-odds.
+   - **1D CNN:** Conv1D intermediate feature map activation heatmaps (32 filters). Discloses that tree-path attribution does not apply to neural networks.
+3. **Counterfactual What-If Simulator:**
+   - Recomputes sensitivity curves using the *currently active model*, displaying probability shifts across plausible sensor ranges.
+4. **Multi-Model Comparison:**
+   - Optional side-by-side evaluation table executing inference across all 4 models on the same input record.
+   - Objective explanation of model consensus and architectural divergence.
+5. **Batch Assessment:**
+   - Users select which model executes batch inference.
+   - Fault-tolerant row-level validation: invalid sensor rows are flagged without crashing the batch.
+   - Appends model metadata, probability, prediction, risk tier, and status.
+6. **Assessment History & Auditing:**
+   - Records `model_id`, `model_name`, `model_type`, inputs, probability, and risk tier.
+   - Interactive filtering by model.
+   - Preserves backward compatibility for legacy records without model tags.
 
-| Test File | Count | Coverage |
+---
+
+## 5. Automated Test Suite Verification
+
+**55 tests, 0 failures (All Passing):**
+
+| Test Module | Tests | Verified Functionality |
 | :--- | :--- | :--- |
-| test_machineguard_core.py | 22 | Inference engine, validation, decision layer, history, error handling |
-| test_planning.py | 9 | BFS, DFS, A* optimality, path validation |
-| test_modules_contracts.py | 5 | EDA, classical ML, regression, CNN interfaces |
-| test_config.py | 3 | Path configuration and schema definitions |
-| test_missing_dataset_behavior.py | 2 | Graceful degradation without raw CSV |
-| test_app_startup.py | 1 | Streamlit syntax compilation smoke test |
+| `tests/test_model_selection.py` | 13 | Registry resolution, multi-model execution, explanations, comparison, batch robustness, history metadata |
+| `tests/test_machineguard_core.py` | 22 | Inference engine, boundary validation, decision layer, history persistence, schema mismatch |
+| `tests/test_planning.py` | 9 | BFS, DFS, A* state-space search optimality, path cost validation |
+| `tests/test_modules_contracts.py` | 5 | EDA, classical ML, regression, CNN interface contracts |
+| `tests/test_config.py` | 3 | Path configuration, feature list integrity, dataset locator |
+| `tests/test_missing_dataset_behavior.py` | 2 | Graceful degradation without raw CSV |
+| `tests/test_app_startup.py` | 1 | Streamlit application compilation smoke test |
 
 ---
 
-## 6. Commands to Run (Windows PowerShell)
+## 6. Execution Commands (Windows PowerShell)
 
 ```powershell
-# Navigate to project directory
+# 1. Navigate to project directory
 cd .\CIL_Integrated_Project\
 
-# Run all automated tests (expected: 42 passed)
+# 2. Run full test suite (55 passed)
 pytest -v
 
-# Launch KnowledgeFabric application
+# 3. Launch MachineGuard application
 streamlit run app.py
 ```
-App URL: http://localhost:8501
+Application URL: `http://localhost:8501`

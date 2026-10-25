@@ -142,6 +142,54 @@ def train_and_persist_pipeline(
         }
         fitted_pipelines[name] = clf
 
+    # 5b. Train 1D CNN (PyTorch) if available
+    cnn_net = None
+    from modules import cnn_model
+    if cnn_model.HAS_TORCH:
+        print("Training 1D CNN (PyTorch)...")
+        import torch
+        torch.manual_seed(random_state)
+        cnn_net = cnn_model.PyTorch1DCNN(in_features=len(transformed_feature_names))
+        optimizer = torch.optim.Adam(cnn_net.parameters(), lr=0.002)
+        X_train_tensor = torch.tensor(X_train_proc, dtype=torch.float32).unsqueeze(-1)
+        y_train_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
+        X_test_tensor = torch.tensor(X_test_proc, dtype=torch.float32).unsqueeze(-1)
+
+        neg_count = float((y_train == 0).sum())
+        pos_count = float((y_train == 1).sum())
+        sample_weights = torch.where(y_train_tensor == 1, neg_count / pos_count, 1.0)
+
+        cnn_net.train()
+        for epoch in range(30):
+            optimizer.zero_grad()
+            preds = cnn_net(X_train_tensor)
+            loss = torch.nn.functional.binary_cross_entropy(preds, y_train_tensor, weight=sample_weights)
+            loss.backward()
+            optimizer.step()
+
+        cnn_net.eval()
+        with torch.no_grad():
+            cnn_test_probas = cnn_net(X_test_tensor).squeeze(-1).numpy().ravel()
+
+        cnn_pred_05 = (cnn_test_probas >= 0.50).astype(int)
+        c_cm = confusion_matrix(y_test, cnn_pred_05)
+        c_tn, c_fp, c_fn, c_tp = c_cm.ravel()
+        eval_results["1D CNN"] = {
+            "accuracy": round(float(accuracy_score(y_test, cnn_pred_05)), 4),
+            "precision": round(float(precision_score(y_test, cnn_pred_05, zero_division=0)), 4),
+            "recall": round(float(recall_score(y_test, cnn_pred_05, zero_division=0)), 4),
+            "f1_score": round(float(f1_score(y_test, cnn_pred_05, zero_division=0)), 4),
+            "roc_auc": round(float(roc_auc_score(y_test, cnn_test_probas)), 4),
+            "pr_auc": round(float(average_precision_score(y_test, cnn_test_probas)), 4),
+            "confusion_matrix": {
+                "tn": int(c_tn),
+                "fp": int(c_fp),
+                "fn": int(c_fn),
+                "tp": int(c_tp)
+            }
+        }
+        fitted_pipelines["1D CNN"] = cnn_net
+
     # 6. Select Production Model: Random Forest
     prod_model_name = "Random Forest"
     prod_clf = fitted_pipelines[prod_model_name]
@@ -191,8 +239,10 @@ def train_and_persist_pipeline(
     # 8. Feature Importances (MDI & Permutation)
     global_importances = dict(zip(transformed_feature_names, [round(float(v), 4) for v in prod_clf.feature_importances_]))
 
-    # 9. Persist Model and Preprocessor to artifacts/models/
+    # 9. Persist Models and Preprocessor to artifacts/models/
     config.MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # 9a. Production Model (Random Forest)
     prod_artifact = {
         "model": prod_clf,
         "preprocessor": preprocessor,
@@ -201,11 +251,72 @@ def train_and_persist_pipeline(
         "target_col": target_col,
         "operating_threshold": 0.35,  # Balanced operating point for maintenance safety
         "model_version": "1.0.0",
+        "model_id": "random_forest",
+        "model_name": "Random Forest Classifier",
+        "model_type": "ML",
         "random_state": random_state
     }
     prod_model_path = config.MODELS_DIR / "production_model.joblib"
     joblib.dump(prod_artifact, prod_model_path)
-    print(f"Saved production model artifact to {prod_model_path}")
+    joblib.dump(prod_artifact, config.MODELS_DIR / "random_forest.joblib")
+    print(f"Saved production Random Forest model artifact to {prod_model_path}")
+
+    # 9b. Gradient Boosting
+    gb_clf = fitted_pipelines["Gradient Boosting"]
+    gb_artifact = {
+        "model": gb_clf,
+        "preprocessor": preprocessor,
+        "feature_names_raw": feature_cols,
+        "feature_names_transformed": transformed_feature_names,
+        "target_col": target_col,
+        "operating_threshold": 0.35,
+        "model_version": "1.0.0",
+        "model_id": "gradient_boosting",
+        "model_name": "Gradient Boosting Classifier",
+        "model_type": "ML",
+        "random_state": random_state
+    }
+    gb_path = config.MODELS_DIR / "gradient_boosting.joblib"
+    joblib.dump(gb_artifact, gb_path)
+    print(f"Saved Gradient Boosting model artifact to {gb_path}")
+
+    # 9c. Logistic Regression
+    lr_clf = fitted_pipelines["Logistic Regression (Balanced)"]
+    lr_artifact = {
+        "model": lr_clf,
+        "preprocessor": preprocessor,
+        "feature_names_raw": feature_cols,
+        "feature_names_transformed": transformed_feature_names,
+        "target_col": target_col,
+        "operating_threshold": 0.50,
+        "model_version": "1.0.0",
+        "model_id": "logistic_regression",
+        "model_name": "Logistic Regression (Balanced)",
+        "model_type": "ML",
+        "random_state": random_state
+    }
+    lr_path = config.MODELS_DIR / "logistic_regression.joblib"
+    joblib.dump(lr_artifact, lr_path)
+    print(f"Saved Logistic Regression model artifact to {lr_path}")
+
+    # 9d. 1D CNN (PyTorch)
+    if cnn_net is not None:
+        cnn_artifact = {
+            "model": cnn_net,
+            "preprocessor": preprocessor,
+            "feature_names_raw": feature_cols,
+            "feature_names_transformed": transformed_feature_names,
+            "target_col": target_col,
+            "operating_threshold": 0.50,
+            "model_version": "1.0.0",
+            "model_id": "cnn_1d",
+            "model_name": "1D Convolutional Neural Network (CNN)",
+            "model_type": "DL",
+            "random_state": random_state
+        }
+        cnn_path = config.MODELS_DIR / "cnn_1d.joblib"
+        joblib.dump(cnn_artifact, cnn_path)
+        print(f"Saved 1D CNN model artifact to {cnn_path}")
 
     # Also persist test set for live benchmark checks and demonstration records
     test_data_artifact = {
@@ -254,3 +365,4 @@ def train_and_persist_pipeline(
 
 if __name__ == "__main__":
     train_and_persist_pipeline()
+

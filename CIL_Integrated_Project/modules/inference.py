@@ -1,7 +1,9 @@
 """
 MachineGuard Inference Engine
 Handles loading persisted artifacts, rigorous input validation,
-consistent feature ordering, preprocessing, and prediction generation.
+consistent feature ordering, preprocessing, and prediction generation across
+Machine Learning (Random Forest, Gradient Boosting, Logistic Regression) and
+Deep Learning (1D CNN) models.
 """
 
 from pathlib import Path
@@ -13,18 +15,33 @@ import joblib
 import config
 
 class MachineGuardInferenceEngine:
-    def __init__(self, model_path: Optional[Path] = None):
+    def __init__(self, model_path: Optional[Path] = None, model_id: Optional[str] = None):
         self._explicit_model_path = model_path  # None means "use default + fallback"
-        self.model_path = model_path or config.PRODUCTION_MODEL_PATH
+        self.model_id = model_id or "random_forest"
+
+        if model_path is not None:
+            self.model_path = model_path
+        else:
+            # Resolve from model registry if known
+            from modules.model_registry import MODEL_CATALOG
+            if self.model_id in MODEL_CATALOG:
+                self.model_path = MODEL_CATALOG[self.model_id]["artifact_path"]
+            else:
+                self.model_path = config.PRODUCTION_MODEL_PATH
+
         self.artifact: Optional[Dict[str, Any]] = None
         self.model = None
         self.preprocessor = None
         self.raw_feature_cols = config.CATEGORICAL_FEATURES + config.NUMERICAL_FEATURES
-        self.transformed_feature_cols = []
+        self.transformed_feature_cols: List[str] = []
         self.operating_threshold = config.DEFAULT_OPERATING_THRESHOLD
         self.model_version = "1.0.0"
+        self.model_name = "Random Forest Classifier"
+        self.model_type = "ML"
+        self.explanation_type = "tree_attribution"
         self.is_loaded = False
         self.load_error: Optional[str] = None
+
         self._load_artifact()
 
     def _load_artifact(self):
@@ -68,6 +85,17 @@ class MachineGuardInferenceEngine:
             self.transformed_feature_cols = self.artifact.get("feature_names_transformed", [])
             self.operating_threshold = float(self.artifact.get("operating_threshold", config.DEFAULT_OPERATING_THRESHOLD))
             self.model_version = str(self.artifact.get("model_version", "1.0.0"))
+            self.model_id = str(self.artifact.get("model_id", self.model_id))
+            self.model_name = str(self.artifact.get("model_name", "Random Forest Classifier"))
+            self.model_type = str(self.artifact.get("model_type", "ML"))
+
+            # Determine explanation type based on model architecture
+            if self.model_type == "DL":
+                self.explanation_type = "conv_activations"
+            elif "logistic" in self.model_id.lower() or "logistic" in self.model_name.lower():
+                self.explanation_type = "linear_coefficients"
+            else:
+                self.explanation_type = "tree_attribution"
 
             # Verify schema compatibility
             expected_features = config.CATEGORICAL_FEATURES + config.NUMERICAL_FEATURES
@@ -148,7 +176,7 @@ class MachineGuardInferenceEngine:
         return True, None, ordered_df
 
     def predict_single(self, input_dict: Dict[str, Any], custom_threshold: Optional[float] = None) -> Dict[str, Any]:
-        """Runs validated inference on a single machine record."""
+        """Runs validated inference on a single machine record using the configured model."""
         if not self.is_loaded:
             detail = self.load_error or "Please train the model first."
             raise RuntimeError(f"Production model is not loaded. {detail}")
@@ -163,25 +191,59 @@ class MachineGuardInferenceEngine:
 
         th = custom_threshold if custom_threshold is not None else self.operating_threshold
         proc = self.preprocessor.transform(df)
-        proba = float(self.model.predict_proba(proc)[0, 1])
-        prediction = 1 if proba >= th else 0
 
-        # Calculate exact tree-path local contributions for explainability
-        feature_contributions = self._compute_local_contributions(proc[0])
+        feature_contributions: Optional[Dict[str, float]] = None
+        conv_activations: Optional[Dict[str, np.ndarray]] = None
+
+        if self.model_type == "DL":
+            # Deep Learning / PyTorch 1D CNN Inference
+            import torch
+            X_tensor = torch.tensor(proc, dtype=torch.float32).unsqueeze(-1)
+            self.model.eval()
+            with torch.no_grad():
+                proba = float(self.model(X_tensor).item())
+            prediction = 1 if proba >= th else 0
+
+            # Extract convolutional activations
+            c1, c2 = self.model.extract_conv_activations(X_tensor)
+            conv_activations = {"conv1d_1": c1, "conv1d_2": c2}
+            # Tree attribution is not applicable to CNNs
+            feature_contributions = {}
+        else:
+            # Classical Machine Learning Inference (Random Forest, Gradient Boosting, Logistic Regression)
+            if hasattr(self.model, "predict_proba"):
+                proba = float(self.model.predict_proba(proc)[0, 1])
+            else:
+                proba = float(self.model.predict(proc)[0])
+            prediction = 1 if proba >= th else 0
+
+            # Compute model-specific feature attribution
+            if "random forest" in self.model_name.lower():
+                feature_contributions = self._compute_rf_contributions(proc[0])
+            elif "gradient boosting" in self.model_name.lower():
+                feature_contributions = self._compute_gb_contributions(proc[0])
+            elif "logistic" in self.model_name.lower():
+                feature_contributions = self._compute_lr_contributions(proc[0])
+            else:
+                feature_contributions = self._compute_generic_contributions(proc[0])
 
         return {
             "prediction": prediction,
             "failure_probability": proba,
             "operating_threshold": th,
-            "model_name": "Random Forest Classifier",
+            "model_id": self.model_id,
+            "model_name": self.model_name,
+            "model_type": self.model_type,
             "model_version": self.model_version,
-            "feature_contributions": feature_contributions,
+            "feature_contributions": feature_contributions or {},
+            "conv_activations": conv_activations,
+            "explanation_type": self.explanation_type,
             "input_features": df.iloc[0].to_dict(),
             "transformed_features": dict(zip(self.transformed_feature_cols, proc[0].tolist()))
         }
 
     def predict_batch(self, df: pd.DataFrame, custom_threshold: Optional[float] = None) -> pd.DataFrame:
-        """Runs validated batch inference on a DataFrame using the shared risk classification."""
+        """Runs validated batch inference on a DataFrame."""
         if not self.is_loaded:
             detail = self.load_error or "Please train the model first."
             raise RuntimeError(f"Production model is not loaded. {detail}")
@@ -199,7 +261,19 @@ class MachineGuardInferenceEngine:
 
         th = custom_threshold if custom_threshold is not None else self.operating_threshold
         proc = self.preprocessor.transform(validated_df)
-        probas = self.model.predict_proba(proc)[:, 1]
+
+        if self.model_type == "DL":
+            import torch
+            X_tensor = torch.tensor(proc, dtype=torch.float32).unsqueeze(-1)
+            self.model.eval()
+            with torch.no_grad():
+                probas = self.model(X_tensor).squeeze(-1).numpy().ravel()
+        else:
+            if hasattr(self.model, "predict_proba"):
+                probas = self.model.predict_proba(proc)[:, 1]
+            else:
+                probas = self.model.predict(proc).astype(float)
+
         preds = (probas >= th).astype(int)
 
         from modules.decision_layer import classify_risk_tier
@@ -211,23 +285,88 @@ class MachineGuardInferenceEngine:
             classify_risk_tier(p, th)
             for p in probas
         ]
+        result_df["Selected_Model"] = self.model_name
+        result_df["Model_Type"] = self.model_type
+        result_df["Decision_Threshold"] = th
+        result_df["Prediction_Status"] = "SUCCESS"
         return result_df
 
-    def _compute_local_contributions(self, x_proc_row: np.ndarray) -> Dict[str, float]:
+    def predict_batch_robust(self, df: pd.DataFrame, custom_threshold: Optional[float] = None) -> pd.DataFrame:
         """
-        Calculates exact tree-based decision path local contributions.
-        Accumulates delta in failure class probability along the decision path for each tree.
+        Batch inference with row-level fault tolerance.
+        Valid rows receive predictions; invalid rows are marked with error status without crashing the batch.
         """
+        if not self.is_loaded:
+            detail = self.load_error or "Please train the model first."
+            raise RuntimeError(f"Production model is not loaded. {detail}")
+
+        if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+            raise ValueError("Input DataFrame is empty. Please provide at least one machine telemetry record.")
+
+        th = custom_threshold if custom_threshold is not None else self.operating_threshold
+        from modules.decision_layer import classify_risk_tier
+
+        result_df = df.copy()
+        probas: List[Optional[float]] = []
+        preds: List[Optional[int]] = []
+        risk_levels: List[str] = []
+        statuses: List[str] = []
+
+        for idx, row in df.iterrows():
+            row_dict = row.to_dict()
+            is_valid, err, val_df = self.validate_input(row_dict)
+            if not is_valid:
+                probas.append(None)
+                preds.append(None)
+                risk_levels.append("INVALID")
+                statuses.append(f"Validation Error: {err}")
+                continue
+
+            try:
+                proc = self.preprocessor.transform(val_df)
+                if self.model_type == "DL":
+                    import torch
+                    X_tensor = torch.tensor(proc, dtype=torch.float32).unsqueeze(-1)
+                    self.model.eval()
+                    with torch.no_grad():
+                        p = float(self.model(X_tensor).item())
+                else:
+                    p = float(self.model.predict_proba(proc)[0, 1])
+
+                pred = 1 if p >= th else 0
+                tier = classify_risk_tier(p, th)
+
+                probas.append(round(p, 4))
+                preds.append(pred)
+                risk_levels.append(tier)
+                statuses.append("SUCCESS")
+            except Exception as e:
+                probas.append(None)
+                preds.append(None)
+                risk_levels.append("ERROR")
+                statuses.append(f"Inference Error: {str(e)}")
+
+        result_df["Failure_Probability"] = probas
+        result_df["Predicted_Failure"] = preds
+        result_df["Risk_Level"] = risk_levels
+        result_df["Selected_Model"] = self.model_name
+        result_df["Model_Type"] = self.model_type
+        result_df["Decision_Threshold"] = th
+        result_df["Prediction_Status"] = statuses
+        return result_df
+
+    def _compute_rf_contributions(self, x_proc_row: np.ndarray) -> Dict[str, float]:
+        """Calculates exact tree-based decision path local contributions for Random Forest."""
         n_features = len(self.transformed_feature_cols)
         contribs = np.zeros(n_features)
-        
+
         for tree in self.model.estimators_:
             indicator = tree.decision_path(x_proc_row.reshape(1, -1))
             nodes = indicator.indices
             node_values = tree.tree_.value[:, 0, :]
             # Probability of failure (class 1)
             probs = node_values[:, 1] / node_values.sum(axis=1)
-            
+
             for i in range(len(nodes) - 1):
                 curr_node = nodes[i]
                 next_node = nodes[i + 1]
@@ -239,11 +378,59 @@ class MachineGuardInferenceEngine:
         mean_contribs = contribs / len(self.model.estimators_)
         return dict(zip(self.transformed_feature_cols, [round(float(c), 4) for c in mean_contribs]))
 
-# Singleton instance
-_engine_instance = None
+    def _compute_gb_contributions(self, x_proc_row: np.ndarray) -> Dict[str, float]:
+        """Calculates exact stagewise tree decision path contributions for Gradient Boosting."""
+        n_features = len(self.transformed_feature_cols)
+        contribs = np.zeros(n_features)
+        lr = float(getattr(self.model, "learning_rate", 0.1))
 
-def get_inference_engine(model_path: Optional[Path] = None, force_reload: bool = False) -> MachineGuardInferenceEngine:
-    global _engine_instance
-    if _engine_instance is None or force_reload or (model_path is not None and model_path != _engine_instance.model_path):
-        _engine_instance = MachineGuardInferenceEngine(model_path=model_path)
-    return _engine_instance
+        for stage in self.model.estimators_:
+            tree = stage[0]
+            indicator = tree.decision_path(x_proc_row.reshape(1, -1))
+            nodes = indicator.indices
+            node_values = tree.tree_.value[:, 0, 0]
+
+            for i in range(len(nodes) - 1):
+                curr_node = nodes[i]
+                next_node = nodes[i + 1]
+                feat = tree.tree_.feature[curr_node]
+                if feat >= 0:
+                    delta = node_values[next_node] - node_values[curr_node]
+                    contribs[feat] += lr * delta
+
+        return dict(zip(self.transformed_feature_cols, [round(float(c), 4) for c in contribs]))
+
+    def _compute_lr_contributions(self, x_proc_row: np.ndarray) -> Dict[str, float]:
+        """Calculates exact linear log-odds feature contributions for Logistic Regression."""
+        coefs = self.model.coef_[0]
+        contribs = coefs * x_proc_row
+        return dict(zip(self.transformed_feature_cols, [round(float(c), 4) for c in contribs]))
+
+    def _compute_generic_contributions(self, x_proc_row: np.ndarray) -> Dict[str, float]:
+        """Fallback feature importance attribution for general tree models."""
+        if hasattr(self.model, "feature_importances_"):
+            return dict(zip(self.transformed_feature_cols, [round(float(v), 4) for v in self.model.feature_importances_]))
+        return {feat: 0.0 for feat in self.transformed_feature_cols}
+
+
+# Cache of instantiated inference engines by (model_id, model_path_str)
+_engine_cache: Dict[Tuple[str, Optional[str]], MachineGuardInferenceEngine] = {}
+
+
+def get_inference_engine(
+    model_id: str = "random_forest",
+    model_path: Optional[Path] = None,
+    force_reload: bool = False
+) -> MachineGuardInferenceEngine:
+    """
+    Returns cached inference engine for a given model ID or explicit artifact path.
+    Default invocation (no args) returns the primary production Random Forest engine.
+    """
+    global _engine_cache
+    path_key = str(model_path) if model_path is not None else None
+    cache_key = (model_id, path_key)
+
+    if force_reload or cache_key not in _engine_cache:
+        _engine_cache[cache_key] = MachineGuardInferenceEngine(model_path=model_path, model_id=model_id)
+
+    return _engine_cache[cache_key]
