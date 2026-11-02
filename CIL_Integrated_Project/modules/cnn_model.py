@@ -19,6 +19,8 @@ from typing import Dict, List, Optional, Tuple, Any, Union
 import json
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend; required for headless/test environments
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.linear_model import LogisticRegression
@@ -61,7 +63,7 @@ try:
     import torch.optim as optim
     from torch.utils.data import TensorDataset, DataLoader
     HAS_TORCH = True
-except ImportError:
+except (ImportError, OSError):
     HAS_TORCH = False
 
 

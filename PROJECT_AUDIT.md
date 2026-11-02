@@ -1,9 +1,9 @@
 # Project Audit and Integration Plan: CIL Tasks 3–8
 
-**Date:** 2026-10-18  
-**Project:** CIL Integrated Project (Tasks 3–8)  
-**Environment:** Windows 11, Python 3.14.0, Streamlit 1.58.0, Scikit-learn 1.8.0, PyTorch 2.13.0  
-**Status:** Pre-Integration Audit Complete — Dataset (`ai4i2020.csv`) Temporarily Unavailable  
+**Date:** 2026-10-20
+**Project:** CIL Integrated Project (Tasks 3–8) → **KnowledgeFabric / MachineGuard**
+**Environment:** Windows 11, Python 3.14.0, Streamlit 1.66.0, Scikit-learn 1.9.1, PyTorch 2.13.0
+**Status:** ✅ Integration Complete — 42 Automated Tests Passing. Dataset Present. Production Model Deployed.
 
 ---
 
@@ -211,7 +211,7 @@ To ensure the application is **fully deployable, crash-proof, and independent of
 
 ```text
 CIL_Integrated_Project/
-├── app.py                         # Streamlit multi-page orchestration entry point
+├── app.py                         # KnowledgeFabric/MachineGuard Streamlit application
 ├── config.py                      # Central paths, feature lists, and constants
 ├── notebooks/                     # Read-only copies of the 3 original notebooks
 │   ├── CIL3.ipynb
@@ -219,69 +219,103 @@ CIL_Integrated_Project/
 │   └── CIL78.ipynb
 ├── modules/
 │   ├── __init__.py
+│   ├── model_trainer.py           # Leakage-free training & artifact persistence pipeline
+│   ├── inference.py               # Production inference engine with schema validation
+│   ├── decision_layer.py          # Risk tier mapping & maintenance recommendations
+│   ├── history_manager.py         # Assessment history logger & CSV exporter
+│   ├── interpretability.py        # Task 8: Tree attributions, what-if, activation maps
 │   ├── planning.py                # Task 3: State Space Search (BFS, DFS, A*, validator)
 │   ├── eda.py                     # Task 4: Dataset loading, cleaning, statistics, plots
 │   ├── classical_ml.py            # Task 5: Feature importance, 4 classifiers, clustering
 │   ├── regression.py              # Task 6: Tool wear linear regression & diagnostics
-│   ├── cnn_model.py               # Task 7: 1D CNN architecture, training & evaluation
-│   └── interpretability.py        # Task 8: Activation maps & LIME explanations
+│   └── cnn_model.py               # Task 7: 1D CNN architecture, training & evaluation
 ├── data/
-│   ├── raw/                       # Destination for ai4i2020.csv once provided
+│   ├── raw/ai4i2020.csv           # AI4I 2020 dataset (present, 10,000 x 14)
 │   └── processed/                 # Generated scaled & cleaned datasets
 ├── artifacts/
-│   ├── models/                    # Saved joblib / keras models
-│   ├── metadata.json              # Historical metrics, parameters, and architecture schemas
+│   ├── models/
+│   │   ├── production_model.joblib # Persisted Random Forest + ColumnTransformer (v1.0.0)
+│   │   └── test_set_split.joblib   # Held-out test split (2,000 samples)
+│   ├── assessment_history.json    # Persisted assessment audit log
+│   ├── metadata.json              # Verified held-out metrics, schema, threshold curves
 │   └── figures/                   # Cached figures and charts
-├── tests/
-│   ├── __init__.py
-│   ├── test_config.py             # Path and environment resolution tests
-│   ├── test_planning.py           # Task 3 algorithmic unit tests
-│   ├── test_data_validation.py    # Schema and missing-dataset tests
-│   ├── test_ml_contracts.py       # Module interfaces and synthetic fallback tests
-│   └── test_app_startup.py        # Streamlit smoke & import tests
-├── requirements.txt               # Pinned dependencies with optional markers
-├── .gitignore                     # Windows, Python, and Streamlit ignore rules
-├── README.md                      # Comprehensive deployment & usage guide
-└── PROJECT_AUDIT.md               # This audit document
+├── tests/                         # Automated test suite (42 tests, 0 failures)
+│   ├── test_machineguard_core.py  # 22 tests: inference, decision, history, validation
+│   ├── test_planning.py           # 9 tests: Task 3 algorithmic unit tests
+│   ├── test_modules_contracts.py  # 5 tests: module interface contracts
+│   ├── test_config.py             # 3 tests: path and environment resolution
+│   ├── test_missing_dataset_behavior.py  # 2 tests: graceful degradation
+│   └── test_app_startup.py        # 1 test: Streamlit compilation smoke test
+├── requirements.txt               # Pinned dependencies
+├── .gitignore
+├── README.md
+└── PROJECT_AUDIT.md               # This document
 ```
 
 ---
 
-## 6. Implementation Plan & Phase Milestones
+## 6. Completed Milestones
 
-### Phase 2: Project Structure Setup
-* Create `CIL_Integrated_Project` hierarchy.
-* Safely copy notebooks into `notebooks/` leaving originals in root untouched.
-* Setup `.gitignore` and `config.py`.
+### Phase 2: Project Structure Setup ✔
+* `CIL_Integrated_Project` hierarchy created with all directories.
+* Notebooks copied into `notebooks/`; originals preserved in repo root.
+* `.gitignore` and `config.py` configured.
 
-### Phase 3: Module Refactoring
-* `modules/planning.py`: Pure Python implementation of states, actions, BFS, DFS, A*, heuristic, path validator, and scenario runner.
-* `modules/eda.py`: Safe data loading, descriptive statistics, outlier boxplots, correlation heatmap, scaling pipeline.
-* `modules/classical_ml.py`: Classification pipeline (LogReg, DT, RF, SVM), K-Means, Hierarchical clustering.
+### Phase 3: Module Refactoring ✔
+* `modules/planning.py`: BFS, DFS, A*, heuristic, path validator.
+* `modules/eda.py`: Data loading, descriptive stats, outlier boxplots, correlation heatmap, scaling.
+* `modules/classical_ml.py`: LogReg, DT, RF, SVM; K-Means; Ward hierarchical clustering.
 * `modules/regression.py`: Tool wear linear regression and residual analysis.
-* `modules/cnn_model.py`: 1D CNN architecture definition, train/test evaluation metrics, ROC/PR curves, and dual-backend support (Keras/PyTorch fallback).
-* `modules/interpretability.py`: Convolutional activation maps extraction and LIME surrogate explainer.
+* `modules/cnn_model.py`: 1D CNN definition, train/test metrics, ROC/PR curves, PyTorch backend.
+* `modules/interpretability.py`: Tree-path attributions, what-if counterfactual simulator, activation maps, LIME.
+* `modules/model_trainer.py`: Leakage-free pipeline — ColumnTransformer, stratified split, persists artifact.
+* `modules/inference.py`: Production engine — schema validation, physical bounds checks, batch/single prediction.
+* `modules/decision_layer.py`: Four-tier risk classification (NOMINAL/MONITORING/ELEVATED/CRITICAL).
+* `modules/history_manager.py`: Assessment logger with threshold & model version tracking, CSV export.
 
-### Phase 4: Streamlit UI Design
-* Clean, modular Streamlit interface with 7 dedicated pages:
-  1. 📌 **Overview & System Health:** Task audit, environment status, dataset availability check.
-  2. 🧭 **Task 3: AI Maintenance Planner:** Interactive search visualizer (BFS, DFS, A*) with step-by-step path traces.
-  3. 📊 **Task 4: EDA & Preprocessing:** Data distribution, correlations, summary metrics, and cleaning.
-  4. 🤖 **Task 5: Classical Machine Learning:** Supervised classifiers, feature importances, and clustering.
-  5. 📈 **Task 6: Tool Wear Regression:** Linear regression analysis and prediction scatter.
-  6. 🧠 **Task 7: 1D CNN Deep Learning:** CNN model architecture, training curves, ROC/PR curves, baseline comparison.
-  7. 🔍 **Task 8: Model Interpretability:** Intermediate layer activations and LIME feature attribution.
+### Phase 4: Streamlit UI Design ✔
+* Five primary navigation sections:
+  1. Machine Assessment — form, demo cases, batch upload, inference, what-if simulator.
+  2. Assessment History — auditable log, CSV export.
+  3. Model Performance — held-out metrics, confusion matrix, PR-AUC, threshold curves, subgroup analysis.
+  4. Experiments (Tasks 3–8) — preserved interactive lab tasks.
+  5. About, Ethics & Limitations — class imbalance, synthetic data caveats, safety guardrails.
 
-### Phase 5: Artifacts, Diagnostics & Error Handling
-* Save notebook benchmark results into `artifacts/metadata.json`.
-* Graceful handling when `ai4i2020.csv` is missing: clear banner, upload button, and synthetic diagnostic preview mode for testing UI responsiveness.
+### Phase 5: Artifacts, Diagnostics & Error Handling ✔
+* `artifacts/models/production_model.joblib` — trained Random Forest (ROC-AUC 0.9696).
+* `artifacts/models/test_set_split.joblib` — held-out 2,000-sample test split.
+* `artifacts/metadata.json` — verified held-out metrics, threshold curves, subgroup performance.
+* `artifacts/assessment_history.json` — persistent assessment audit log.
+* Matplotlib `Agg` backend set in all modules to prevent Tk crashes in headless environments.
+* PyTorch imported with `(ImportError, OSError)` guard for Windows DLL compatibility.
 
-### Phase 6: Automated Testing & Verification
-* Run pytest suite covering:
-  * Module imports and contracts without dataset.
-  * Task 3 planning algorithms: BFS, DFS, A* optimality, path validity.
-  * Missing file exception handling.
-  * Synthetic schema verification.
+### Phase 6: Automated Testing & Verification ✔
+* **42 tests, 0 failures** across 6 test files.
+* Covers: inference engine, input validation, decision layer, history manager, batch/single prediction,
+  missing-model controlled failure, corrupt-artifact detection, feature schema mismatch,
+  BFS/DFS/A* optimality, EDA/ML/regression/CNN module contracts, app compilation.
 
-### Phase 7: Deployment Documentation
-* Write comprehensive `README.md` with Windows PowerShell instructions, dataset requirements, and deployment instructions.
+### Phase 7: Deployment Documentation ✔
+* `README.md` updated with correct test counts, versions, full module tree, and current status.
+* `PROJECT_AUDIT.md` updated to reflect completed state and all fixes applied.
+* `CIL_Integrated_Project/README.md` and `CIL_Integrated_Project/PROJECT_AUDIT.md` fully current.
+
+---
+
+## 7. Environment (Current State)
+
+* **Operating System:** Windows 11 (PowerShell)
+* **Python Runtime:** Python 3.14.0
+* **Installed Packages:**
+  * `streamlit` (1.66.0) — Installed & Verified
+  * `scikit-learn` (1.9.1) — Installed & Verified
+  * `pandas` (3.0.1) — Installed & Verified
+  * `numpy` (2.4.2) — Installed & Verified
+  * `matplotlib` (3.10.8) & `seaborn` (0.13.2) — Installed & Verified
+  * `scipy` (1.17.1) — Installed & Verified
+  * `joblib` — Installed & Verified
+  * `pytest` (9.1.1) — Installed & Verified
+  * `torch` (2.13.0) — Installed & Verified
+* **Framework Notes:**
+  * `tensorflow`: Not installed (unavailable for Python 3.14 on Windows). PyTorch backend used.
+  * `lime`: Optional. LIME explainability gracefully disabled if not installed.
