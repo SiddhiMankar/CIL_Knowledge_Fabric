@@ -2,7 +2,7 @@
 
 **Project:** CIL Integrated Project -> **MachineGuard — Predictive Maintenance Intelligence**
 **Environment:** Windows PowerShell, Python 3.14.0, PyTorch 2.13.0, Scikit-learn 1.8.0, Streamlit 1.58.0
-**Status:** User-Selectable ML/DL Models Fully Operational — 55 Automated Tests Passing (0 Failures)
+**Status:** User-Selectable ML/DL Models Fully Operational — 77 Automated Tests Passing (0 Failures)
 
 ---
 
@@ -79,7 +79,7 @@ All models evaluated strictly on the untouched held-out test partition (2,000 sa
 
 ## 5. Automated Test Suite Verification
 
-**55 tests, 0 failures (All Passing):**
+**77 tests, 0 failures (All Passing):**
 
 | Test Module | Tests | Verified Functionality |
 | :--- | :--- | :--- |
@@ -99,7 +99,7 @@ All models evaluated strictly on the untouched held-out test partition (2,000 sa
 # 1. Navigate to project directory
 cd .\CIL_Integrated_Project\
 
-# 2. Run full test suite (55 passed)
+# 2. Run full test suite (77 passed)
 pytest -v
 
 # 3. Launch MachineGuard application

@@ -4,7 +4,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.66.0-red.svg)](https://streamlit.io/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.13.0-orange.svg)](https://pytorch.org/)
 [![Scikit-Learn](https://img.shields.io/badge/scikit--learn-1.8.0-green.svg)](https://scikit-learn.org/)
-[![Tests](https://img.shields.io/badge/pytest-42%20passed-brightgreen.svg)](CIL_Integrated_Project/tests/)
+[![Tests](https://img.shields.io/badge/pytest-77%20passed-brightgreen.svg)](CIL_Integrated_Project/tests/)
 [![Dataset](https://img.shields.io/badge/Dataset-AI4I%202020%20(UCI)-blueviolet.svg)](https://archive.ics.uci.edu/dataset/601/ai4i+2020+predictive+maintenance+dataset)
 
 An enterprise-grade, explainable industrial intelligence platform combining formal knowledge representation, classical machine learning, deep 1D convolutional neural networks, forward-chaining rule inference, heuristic state-space planning, and comprehensive validation.
@@ -67,18 +67,24 @@ CIL_KF/
 │   │       ├── scaler_classical.joblib# Fitted StandardScaler for 6-feature pipeline
 │   │       ├── label_encoder.joblib   # Fitted LabelEncoder for Type
 │   │       ├── cnn_pytorch.pt         # Trained PyTorch 1D CNN state dictionary
-│   │       └── scaler_cnn.joblib      # Fitted StandardScaler for 7-feature OneHot pipeline
-│   └── tests/                         # Automated test suite (42 passed tests)
+│   │       ├── scaler_cnn.joblib      # Fitted StandardScaler for 7-feature OneHot pipeline
+│   │       ├── production_model.joblib# Production Random Forest classifier artifact
+│   │       ├── gradient_boosting.joblib# Gradient Boosting classifier artifact
+│   │       ├── logistic_regression.joblib# Logistic Regression classifier artifact
+│   │       └── cnn_1d.joblib          # 1D CNN PyTorch pipeline artifact
+│   └── tests/                         # Automated test suite (77 passed tests)
 │       ├── conftest.py                # Pytest configuration & Matplotlib acceleration
 │       ├── test_app_startup.py        # Streamlit syntax and py_compile smoke test
 │       ├── test_config.py             # Path resolution and feature list integrity
-│       ├── test_knowledge_representation.py # Task 1 entity, constraint & schema tests
-│       ├── test_rule_engine.py        # Task 2 rule firing, conflict resolution & trace tests
-│       ├── test_planning.py           # Task 3 BFS, DFS, A* optimality & path tests
-│       ├── test_modules_contracts.py  # Synthetic contract tests for analytical pipelines
-│       ├── test_missing_dataset_behavior.py # Missing dataset exception handling tests
-│       ├── test_end_to_end_integration.py # Task 9 complete pipeline integration tests
-│       └── test_stress_validation.py  # Task 10 input boundaries & guard tests
+│       ├── test_knowledge_representation.py # Task 1 entity, constraint & schema tests (7 tests)
+│       ├── test_rule_engine.py        # Task 2 rule firing, conflict resolution & trace tests (5 tests)
+│       ├── test_planning.py           # Task 3 BFS, DFS, A* optimality & path tests (9 tests)
+│       ├── test_machineguard_core.py  # MachineGuard core inference & decision tests (22 tests)
+│       ├── test_model_selection.py    # Multi-model selection & explanation tests (13 tests)
+│       ├── test_modules_contracts.py  # Synthetic contract tests for analytical pipelines (5 tests)
+│       ├── test_missing_dataset_behavior.py # Missing dataset exception handling tests (2 tests)
+│       ├── test_end_to_end_integration.py # Task 9 complete pipeline integration tests (2 tests)
+│       └── test_stress_validation.py  # Task 10 input boundaries & guard tests (8 tests)
 ├── notebooks/                         # Preserved original coursework notebooks
 │   ├── CIL3.ipynb                     # Original Task 3 notebook
 │   ├── CIL456.ipynb                   # Original Tasks 4-6 notebook
@@ -135,11 +141,28 @@ pip install -r CIL_Integrated_Project\requirements.txt
 The AI4I 2020 dataset is already provisioned at:
 `CIL_Integrated_Project\data\raw\ai4i2020.csv`
 
-### 4. Run Automated Test Suite (42 Tests)
+### 4. Run Automated Test Suite (77 Tests)
 ```powershell
 $env:MPLCONFIGDIR = "$env:TEMP\mpl"
 .\.venv\Scripts\python.exe -m pytest CIL_Integrated_Project\tests -v
 ```
+
+All **77 automated tests** execute cleanly across 11 test modules with 0 failures:
+
+| Test Module | Tests | Focus Area | Status |
+| :--- | :---: | :--- | :---: |
+| `test_machineguard_core.py` | 22 | Inference engine, boundary conditions, risk tiers, decision mapping, corrupt file recovery | ✅ Passed |
+| `test_model_selection.py` | 13 | Dynamic registry catalog, multi-model execution, model explanations, batch fault tolerance | ✅ Passed |
+| `test_planning.py` | 9 | Task 3 BFS, DFS, A*, admissible heuristic, state-space transitions, path validator | ✅ Passed |
+| `test_stress_validation.py` | 8 | Task 10 input boundaries, guard rules, malformed & physical trips | ✅ Passed |
+| `test_knowledge_representation.py` | 7 | Task 1 frame schema, attribute constraints, schema introspection | ✅ Passed |
+| `test_rule_engine.py` | 5 | Task 2 forward chaining, priority conflict resolution, inference trace audit | ✅ Passed |
+| `test_modules_contracts.py` | 5 | Analytical pipeline contracts (EDA, Classical ML, Regression, CNN prep) | ✅ Passed |
+| `test_config.py` | 3 | Path resolution, environment detection, and feature lists integrity | ✅ Passed |
+| `test_missing_dataset_behavior.py` | 2 | Defensive error handling when dataset or models are absent | ✅ Passed |
+| `test_end_to_end_integration.py` | 2 | Task 9 complete end-to-end pipeline execution (Classical ML & PyTorch CNN) | ✅ Passed |
+| `test_app_startup.py` | 1 | Streamlit syntax and py_compile smoke test | ✅ Passed |
+| **Total** | **77** | **100% Pass Rate across all 10 Syllabus Tasks** | **✅ 77 / 77** |
 
 ### 5. Launch Streamlit Application
 ```powershell

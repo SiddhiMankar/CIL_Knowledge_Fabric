@@ -3,7 +3,7 @@
 **Date:** 2026-10-20
 **Project:** CIL Integrated Project (Tasks 3–8) → **KnowledgeFabric / MachineGuard**
 **Environment:** Windows 11, Python 3.14.0, Streamlit 1.66.0, Scikit-learn 1.9.1, PyTorch 2.13.0
-**Status:** ✅ Integration Complete — 42 Automated Tests Passing. Dataset Present. Production Model Deployed.
+**Status:** ✅ Integration Complete — 77 Automated Tests Passing. Dataset Present. Production Model Deployed.
 
 ---
 
@@ -239,7 +239,7 @@ CIL_Integrated_Project/
 │   ├── assessment_history.json    # Persisted assessment audit log
 │   ├── metadata.json              # Verified held-out metrics, schema, threshold curves
 │   └── figures/                   # Cached figures and charts
-├── tests/                         # Automated test suite (42 tests, 0 failures)
+├── tests/                         # Automated test suite (77 tests, 0 failures)
 │   ├── test_machineguard_core.py  # 22 tests: inference, decision, history, validation
 │   ├── test_planning.py           # 9 tests: Task 3 algorithmic unit tests
 │   ├── test_modules_contracts.py  # 5 tests: module interface contracts
@@ -290,7 +290,7 @@ CIL_Integrated_Project/
 * PyTorch imported with `(ImportError, OSError)` guard for Windows DLL compatibility.
 
 ### Phase 6: Automated Testing & Verification ✔
-* **42 tests, 0 failures** across 6 test files.
+* **77 tests, 0 failures** across 6 test files.
 * Covers: inference engine, input validation, decision layer, history manager, batch/single prediction,
   missing-model controlled failure, corrupt-artifact detection, feature schema mismatch,
   BFS/DFS/A* optimality, EDA/ML/regression/CNN module contracts, app compilation.
