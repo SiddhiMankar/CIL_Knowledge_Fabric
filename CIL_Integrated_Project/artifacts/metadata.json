@@ -1,16 +1,5 @@
 {
-<<<<<<< HEAD
   "project": "CIL Knowledge Fabric \u2014 MachineGuard Platform",
-  "dataset_spec": {
-    "filename": "ai4i2020.csv",
-    "total_samples": 10000,
-    "features_count": 14,
-    "train_samples": 8000,
-    "test_samples": 2000,
-    "failure_samples_test": 68,
-    "normal_samples_test": 1932
-=======
-  "project": "CIL Integrated Predictive Maintenance & AI Planning",
   "tasks": [
     "Task 3",
     "Task 4",
@@ -21,10 +10,12 @@
   ],
   "dataset_spec": {
     "filename": "ai4i2020.csv",
-    "rows": 10000,
-    "columns": 14,
-    "target": "Machine failure",
-    "regression_target": "Tool wear [min]"
+    "total_samples": 10000,
+    "features_count": 14,
+    "train_samples": 8000,
+    "test_samples": 2000,
+    "failure_samples_test": 68,
+    "normal_samples_test": 1932
   },
   "task3_planning_benchmarks": {
     "equipment": "P-101",
@@ -61,13 +52,11 @@
       "Test Pump",
       "Restore Pump Operation"
     ]
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
   },
   "task5_classical_ml_benchmarks": {
     "test_split_ratio": 0.2,
     "models": {
       "Random Forest": {
-<<<<<<< HEAD
         "accuracy": 0.985,
         "precision_failure": 0.88,
         "recall_failure": 0.6471,
@@ -146,17 +135,6 @@
             12
           ]
         ]
-=======
-        "accuracy": 0.984,
-        "notes": "Top performing classifier in notebook CIL456"
-      },
-      "Decision Tree": {
-        "accuracy": 0.979,
-        "max_depth": 5
-      },
-      "SVM (RBF kernel)": {
-        "accuracy": 0.976
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
       },
       "Logistic Regression": {
         "accuracy": 0.968,
@@ -178,16 +156,6 @@
           ]
         ]
       }
-<<<<<<< HEAD
-=======
-    },
-    "clustering": {
-      "kmeans_clusters": 3,
-      "features": [
-        "Rotational speed [rpm]",
-        "Torque [Nm]"
-      ]
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
     }
   },
   "task6_regression_benchmarks": {
@@ -210,7 +178,6 @@
   "task7_cnn_benchmarks": {
     "architecture": "1D CNN (Conv1D 32 -> BatchNorm -> MaxPool -> Conv1D 64 -> BatchNorm -> GlobalAvgPool -> Dense 64 -> Dropout 0.5 -> Dense 1)",
     "cnn_metrics": {
-<<<<<<< HEAD
       "accuracy": 0.925,
       "precision_failure": 0.301,
       "recall_failure": 0.9118,
@@ -249,21 +216,6 @@
           8
         ]
       ]
-=======
-      "accuracy": 0.966,
-      "precision": 0.5,
-      "recall": 0.647,
-      "f1_score": 0.564,
-      "roc_auc": 0.98,
-      "pr_auc": 0.58
-    },
-    "baseline_logistic_regression_metrics": {
-      "accuracy": 0.824,
-      "precision": 0.142,
-      "recall": 0.824,
-      "f1_score": 0.242,
-      "roc_auc": 0.9,
-      "pr_auc": 0.45
     }
   },
   "task8_interpretability_benchmarks": {
@@ -300,7 +252,6 @@
         "probability": 0.0316,
         "label": "False Negative"
       }
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
     }
   },
   "machineguard_production": {
@@ -337,41 +288,41 @@
     },
     "operating_threshold": 0.35,
     "held_out_metrics": {
-      "accuracy": 0.9785,
-      "precision": 0.7049,
-      "recall": 0.6324,
-      "f1_score": 0.6667,
-      "roc_auc": 0.9696,
-      "pr_auc": 0.7305,
+      "accuracy": 0.9715,
+      "precision": 0.5618,
+      "recall": 0.7353,
+      "f1_score": 0.6369,
+      "roc_auc": 0.9662,
+      "pr_auc": 0.7541,
       "confusion_matrix": {
-        "tn": 1914,
-        "fp": 18,
-        "fn": 25,
-        "tp": 43
+        "tn": 1893,
+        "fp": 39,
+        "fn": 18,
+        "tp": 50
       }
     },
     "metrics_at_operating_threshold": {
-      "tp": 52,
-      "fp": 34,
-      "fn": 16,
-      "tn": 1898,
-      "precision": 0.6047,
-      "recall": 0.7647,
-      "f1_score": 0.6753
+      "tp": 59,
+      "fp": 74,
+      "fn": 9,
+      "tn": 1858,
+      "precision": 0.4436,
+      "recall": 0.8676,
+      "f1_score": 0.5871
     },
     "all_model_evaluations": {
       "Random Forest": {
-        "accuracy": 0.9785,
-        "precision": 0.7049,
-        "recall": 0.6324,
-        "f1_score": 0.6667,
-        "roc_auc": 0.9696,
-        "pr_auc": 0.7305,
+        "accuracy": 0.9715,
+        "precision": 0.5618,
+        "recall": 0.7353,
+        "f1_score": 0.6369,
+        "roc_auc": 0.9662,
+        "pr_auc": 0.7541,
         "confusion_matrix": {
-          "tn": 1914,
-          "fp": 18,
-          "fn": 25,
-          "tp": 43
+          "tn": 1893,
+          "fp": 39,
+          "fn": 18,
+          "tp": 50
         }
       },
       "Gradient Boosting": {
@@ -380,7 +331,7 @@
         "recall": 0.7059,
         "f1_score": 0.7934,
         "roc_auc": 0.9672,
-        "pr_auc": 0.808,
+        "pr_auc": 0.8106,
         "confusion_matrix": {
           "tn": 1927,
           "fp": 5,
@@ -433,49 +384,49 @@
     },
     "threshold_tradeoffs": {
       "0.2": {
-        "tp": 58,
-        "fp": 77,
-        "fn": 10,
-        "tn": 1855,
-        "precision": 0.4296,
-        "recall": 0.8529,
-        "f1_score": 0.5714
+        "tp": 63,
+        "fp": 139,
+        "fn": 5,
+        "tn": 1793,
+        "precision": 0.3119,
+        "recall": 0.9265,
+        "f1_score": 0.4667
       },
       "0.3": {
-        "tp": 53,
-        "fp": 43,
-        "fn": 15,
-        "tn": 1889,
-        "precision": 0.5521,
-        "recall": 0.7794,
-        "f1_score": 0.6463
+        "tp": 62,
+        "fp": 92,
+        "fn": 6,
+        "tn": 1840,
+        "precision": 0.4026,
+        "recall": 0.9118,
+        "f1_score": 0.5586
       },
       "0.35": {
-        "tp": 52,
-        "fp": 34,
-        "fn": 16,
-        "tn": 1898,
-        "precision": 0.6047,
-        "recall": 0.7647,
-        "f1_score": 0.6753
+        "tp": 59,
+        "fp": 74,
+        "fn": 9,
+        "tn": 1858,
+        "precision": 0.4436,
+        "recall": 0.8676,
+        "f1_score": 0.5871
       },
       "0.4": {
-        "tp": 48,
-        "fp": 29,
-        "fn": 20,
-        "tn": 1903,
-        "precision": 0.6234,
-        "recall": 0.7059,
-        "f1_score": 0.6621
+        "tp": 54,
+        "fp": 63,
+        "fn": 14,
+        "tn": 1869,
+        "precision": 0.4615,
+        "recall": 0.7941,
+        "f1_score": 0.5838
       },
       "0.5": {
-        "tp": 43,
-        "fp": 18,
-        "fn": 25,
-        "tn": 1914,
-        "precision": 0.7049,
-        "recall": 0.6324,
-        "f1_score": 0.6667
+        "tp": 50,
+        "fp": 39,
+        "fn": 18,
+        "tn": 1893,
+        "precision": 0.5618,
+        "recall": 0.7353,
+        "f1_score": 0.6369
       }
     },
     "subgroup_performance": {
@@ -483,46 +434,46 @@
         "sample_count": 1170,
         "failure_count": 38,
         "failure_rate": 0.0325,
-        "tp": 29,
-        "fp": 22,
-        "fn": 9,
-        "tn": 1110,
-        "precision": 0.5686,
-        "recall": 0.7632,
-        "f1_score": 0.6517
+        "tp": 33,
+        "fp": 51,
+        "fn": 5,
+        "tn": 1081,
+        "precision": 0.3929,
+        "recall": 0.8684,
+        "f1_score": 0.541
       },
       "M": {
         "sample_count": 616,
         "failure_count": 25,
         "failure_rate": 0.0406,
-        "tp": 20,
-        "fp": 8,
-        "fn": 5,
-        "tn": 583,
-        "precision": 0.7143,
-        "recall": 0.8,
-        "f1_score": 0.7547
+        "tp": 21,
+        "fp": 19,
+        "fn": 4,
+        "tn": 572,
+        "precision": 0.525,
+        "recall": 0.84,
+        "f1_score": 0.6462
       },
       "H": {
         "sample_count": 214,
         "failure_count": 5,
         "failure_rate": 0.0234,
-        "tp": 3,
+        "tp": 5,
         "fp": 4,
-        "fn": 2,
+        "fn": 0,
         "tn": 205,
-        "precision": 0.4286,
-        "recall": 0.6,
-        "f1_score": 0.5
+        "precision": 0.5556,
+        "recall": 1.0,
+        "f1_score": 0.7143
       }
     },
     "feature_importances": {
-      "Air temperature [K]": 0.0998,
-      "Process temperature [K]": 0.0678,
-      "Rotational speed [rpm]": 0.2793,
-      "Torque [Nm]": 0.3299,
-      "Tool wear [min]": 0.2076,
-      "Type_L": 0.0097,
+      "Air temperature [K]": 0.094,
+      "Process temperature [K]": 0.0615,
+      "Rotational speed [rpm]": 0.289,
+      "Torque [Nm]": 0.3281,
+      "Tool wear [min]": 0.2132,
+      "Type_L": 0.0085,
       "Type_M": 0.0058
     },
     "train_samples": 8000,

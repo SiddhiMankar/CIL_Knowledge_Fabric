@@ -9,7 +9,6 @@ Implements:
 - Local feature contribution waterfall / horizontal bar plots for any arbitrary sample.
 - What-If Counterfactual sensitivity simulation (real inference through trained model).
 - CNN Intermediate Layer Activation / Feature Map Visualizations (Conv1D layer outputs).
-<<<<<<< HEAD
 - Inspection of 4 representative operational cases:
   * True Positive (TP): Correctly identified machine failure.
   * True Negative (TN): Correctly identified normal operating condition.
@@ -23,14 +22,7 @@ Implements:
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any, Callable
-=======
-- Inspection of 4 representative operational cases (TN, TP, FP, FN).
-- LIME (Local Interpretable Model-agnostic Explanations) integration with graceful fallback.
-"""
-
 from typing import Dict, List, Optional, Tuple, Any, Callable, Union
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -53,11 +45,7 @@ except ImportError:
 
 
 def find_diagnostic_sample_indices(
-<<<<<<< HEAD
-    y_test: Optional[Any] = None,
-=======
-    y_test: Optional[Union[pd.Series, np.ndarray, list]] = None,
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
+    y_test: Optional[Union[pd.Series, np.ndarray, list, Any]] = None,
     y_pred: Optional[np.ndarray] = None
 ) -> Dict[str, Optional[int]]:
     """
@@ -369,14 +357,8 @@ def get_interpretability_comparison_text() -> Dict[str, Any]:
         },
         "synthesis": (
             "Directness vs. Capacity: Linear regression provides immediate intuitive coefficients, "
-<<<<<<< HEAD
             "whereas 1D CNN provides far superior failure classification recall (0.9118 vs. 0.1176) on imbalanced data. "
             "Pairing CNN with activation maps and LIME bridges the transparency gap, providing both predictive power and explainability."
-        )
-    }
-=======
-            "whereas Random Forest and 1D CNN capture non-linear sensor coupling (torque spikes and high tool wear). "
-            "Pairing tree-based attribution and counterfactual sensitivity bridges the transparency gap, providing both predictive power and actionable engineering explainability."
         )
     }
 
@@ -419,4 +401,3 @@ def explain_sample_lime(
     plt.tight_layout()
 
     return exp, fig, "LIME explanation successfully generated."
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac

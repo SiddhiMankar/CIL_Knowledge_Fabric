@@ -1,5 +1,4 @@
 """
-<<<<<<< HEAD
 Task 2 Module: Rule-Based Inference Engine
 MachineGuard Decision Architecture
 
@@ -462,11 +461,10 @@ class RuleEngine:
             conflict_resolution_rationale=conflict_rationale,
             recommendation=recommendation
         )
-=======
-MachineGuard Decision Layer & Maintenance Recommendations
-Translates raw model probabilities and local feature attributions into
-transparent operational risk tiers, evidentiary justifications, and actionable maintenance protocols.
-"""
+
+# ============================================================================
+# OPERATIONAL RISK TIER & MAINTENANCE DECISION UTILITIES
+# ============================================================================
 
 from typing import Dict, List, Optional, Any
 import numpy as np
@@ -644,5 +642,4 @@ def assess_operational_decision(
             "All recommendations serve as engineering decision-support heuristics and require physical verification prior to maintenance execution."
         ]
     }
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
 

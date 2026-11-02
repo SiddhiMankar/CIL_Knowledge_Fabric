@@ -249,8 +249,8 @@ The platform enforces strict schema boundaries derived from physical domain limi
    The AI4I 2020 dataset was generated using physical simulation models parameterised by real milling machine telemetry (Matan et al., 2020). While it models genuine thermodynamic and mechanical failure physics, it remains a benchmark dataset. Real-world industrial environments involve sensor noise, mechanical wear hysteresis, vibration harmonics, and environmental dust not captured in simulation.
    
 2. **Asymmetric Risk Costs:**
-   - **Cost of a False Negative (Missed Failure):** Spindle bearing seizure, cutting tool explosion, shattered workpiece, spindle motor burnout, operator safety hazard, and hours of unscheduled factory downtime (\$5,000 – \$50,000+).
-   - **Cost of a False Positive (False Alarm):** A 15-minute diagnostic visual check and tool insert measurement (\$20 – \$100).
+   - **Cost of a False Negative (Missed Failure):** Spindle bearing seizure, cutting tool explosion, shattered workpiece, spindle motor burnout, operator safety hazard, and hours of unscheduled factory downtime ($5,000 – $50,000+).
+   - **Cost of a False Positive (False Alarm):** A 15-minute diagnostic visual check and tool insert measurement ($20 – $100).
    - **Engineering Recommendation:** Systems should favor higher recall (such as the 1D CNN with 91.18% recall or Gradient Boosting with 66.18% recall) over pure accuracy.
 
 3. **Human Oversight & Decision Support:**

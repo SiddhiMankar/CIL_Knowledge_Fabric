@@ -79,6 +79,7 @@ FEATURE_COLS_LABEL_ENCODED = [
 
 # Feature ordering for Deep Learning / CNN (Task 7 & 8: 7 features with One-Hot Type)
 FEATURE_COLS_ONEHOT = [
+
     "Air temperature [K]",
     "Process temperature [K]",
     "Rotational speed [rpm]",
@@ -134,3 +135,5 @@ def get_processed_data_path() -> Path:
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     return PROCESSED_DATA_DIR / PROCESSED_FILENAME
 
+
+FEATURE_COLS_ONE_HOT = FEATURE_COLS_ONEHOT

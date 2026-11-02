@@ -1,5 +1,4 @@
 """
-<<<<<<< HEAD
 Task 9 Module: Dynamic Model Registry & Unified Inference Interface
 MachineGuard Model Architecture
 
@@ -11,6 +10,7 @@ Implements:
 - Zero data leakage: Applies fitted persistent scalers/encoders without re-fitting.
 - Direct model invocation returning standardized PredictedFailureRisk dataclasses.
 - Fast initialization with automated fallback if artifacts need regeneration.
+- MachineGuard Core Model Catalog & Inference Engine bridge.
 """
 
 from dataclasses import dataclass, field
@@ -31,6 +31,66 @@ CLASSICAL_MODELS_PATH = config.MODELS_DIR / "classical_models.joblib"
 SCALER_CNN_PATH = config.MODELS_DIR / "scaler_cnn.joblib"
 PYTORCH_CNN_PATH = config.MODELS_DIR / "cnn_pytorch.pt"
 
+# Static registry definitions for supported MachineGuard Core models
+MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
+    "random_forest": {
+        "model_id": "random_forest",
+        "display_name": "Random Forest Classifier",
+        "model_type": "ML",
+        "artifact_path": config.MODELS_DIR / "production_model.joblib",
+        "description": "Ensemble of 100 balanced decision trees. High precision and robustness to multi-sensor outliers.",
+        "prediction_task": "Predicts machine failure probability (0 or 1) from 6 operating telemetry features.",
+        "limitations": "Does not model sequential time-series patterns; predictions are based on instantaneous sensor snapshots.",
+        "operating_threshold": 0.35,
+        "supports_probabilities": True,
+        "explanation_type": "tree_attribution",
+        "explanation_label": "Tree-Path Probability Delta (MDI)",
+        "is_production_default": True
+    },
+    "gradient_boosting": {
+        "model_id": "gradient_boosting",
+        "display_name": "Gradient Boosting Classifier",
+        "model_type": "ML",
+        "artifact_path": config.MODELS_DIR / "gradient_boosting.joblib",
+        "description": "Sequential boosting ensemble of 100 shallow trees optimizing log-loss. Strong discrimination on clear failure regimes.",
+        "prediction_task": "Predicts machine failure probability via stagewise additive decision stumps.",
+        "limitations": "More susceptible to overconfidence on rare anomalous sensor spikes than bagging ensembles.",
+        "operating_threshold": 0.35,
+        "supports_probabilities": True,
+        "explanation_type": "tree_attribution",
+        "explanation_label": "Tree-Path Probability Delta (MDI)",
+        "is_production_default": False
+    },
+    "logistic_regression": {
+        "model_id": "logistic_regression",
+        "display_name": "Logistic Regression Classifier",
+        "model_type": "ML",
+        "artifact_path": config.MODELS_DIR / "logistic_regression.joblib",
+        "description": "Linear generalized model with balanced class weighting. Baseline reference for linear separability.",
+        "prediction_task": "Computes log-odds of failure through a hyperplanar linear decision boundary.",
+        "limitations": "Cannot capture non-linear feature interactions (such as torque multiplied by tool wear) without explicit polynomial expansion.",
+        "operating_threshold": 0.35,
+        "supports_probabilities": True,
+        "explanation_type": "linear_coefficients",
+        "explanation_label": "Standardized Feature Log-Odds Weights",
+        "is_production_default": False
+    },
+    "cnn_1d": {
+        "model_id": "cnn_1d",
+        "display_name": "1D Convolutional Neural Network (PyTorch)",
+        "model_type": "DL",
+        "artifact_path": config.MODELS_DIR / "cnn_1d.joblib",
+        "description": "Deep 1D CNN with 2 convolutional stages, batch normalization, dropout, and dense classification head.",
+        "prediction_task": "Extracts localized cross-sensor feature patterns through learned convolutional kernel filters.",
+        "limitations": "Higher computational footprint; filter representations are less directly interpretable than tree paths.",
+        "operating_threshold": 0.35,
+        "supports_probabilities": True,
+        "explanation_type": "conv_activations",
+        "explanation_label": "Conv1D Intermediate Layer Activation Magnitudes",
+        "is_production_default": False
+    }
+}
+
 
 @dataclass
 class ModelMetadata:
@@ -47,7 +107,8 @@ class ModelMetadata:
 
 class ModelRegistry:
     """
-    Central repository controlling model lifecycle, loading, and inference.
+    Central repository controlling model lifecycle, loading, and unified inference.
+    Supports both Task 9 Dynamic Model Registry interface and MachineGuard Core catalog interface.
     """
 
     def __init__(self):
@@ -57,6 +118,7 @@ class ModelRegistry:
         self._scaler_cnn: Optional[Any] = None
         self._cnn_pytorch_model: Optional[Any] = None
         self._metadata_cache: Dict[str, ModelMetadata] = {}
+        self._catalog = MODEL_CATALOG
         self._load_artifacts()
 
     def _load_artifacts(self):
@@ -109,7 +171,6 @@ class ModelRegistry:
 
     def _rebuild_metadata_catalog(self):
         """Builds active registry metadata catalog reflecting available artifacts."""
-        # Read saved test metrics from metadata.json if available
         meta_json = {}
         if config.METADATA_PATH.exists():
             try:
@@ -129,7 +190,7 @@ class ModelRegistry:
                 feature_schema="LabelEncoded_6",
                 expected_features=config.FEATURE_COLS_LABEL_ENCODED,
                 description="Ensemble of 100 decorrelated decision trees with balanced bootstrapping.",
-                test_metrics=bench_classical.get("Random Forest", {"accuracy": 0.9840, "f1_failure": 0.78, "roc_auc": 0.965}),
+                test_metrics=bench_classical.get("Random Forest", {"accuracy": 0.9850, "f1_failure": 0.7458, "roc_auc": 0.9645}),
                 is_available=("Random Forest" in self._models)
             ),
             "Gradient Boosting": ModelMetadata(
@@ -139,7 +200,7 @@ class ModelRegistry:
                 feature_schema="LabelEncoded_6",
                 expected_features=config.FEATURE_COLS_LABEL_ENCODED,
                 description="Sequential gradient boosting minimizing binary cross-entropy loss.",
-                test_metrics=bench_classical.get("Gradient Boosting", {"accuracy": 0.9810, "f1_failure": 0.76, "roc_auc": 0.960}),
+                test_metrics=bench_classical.get("Gradient Boosting", {"accuracy": 0.9850, "f1_failure": 0.7500, "roc_auc": 0.9684}),
                 is_available=("Gradient Boosting" in self._models)
             ),
             "Decision Tree": ModelMetadata(
@@ -148,93 +209,114 @@ class ModelRegistry:
                 family="Classical Tree",
                 feature_schema="LabelEncoded_6",
                 expected_features=config.FEATURE_COLS_LABEL_ENCODED,
-                description="Interpretable decision tree with maximum depth 5 to prevent overfitting.",
-                test_metrics=bench_classical.get("Decision Tree", {"accuracy": 0.9790, "f1_failure": 0.72, "roc_auc": 0.920}),
+                description="Interpretable decision tree with maximum depth 5 and balanced class weighting.",
+                test_metrics=bench_classical.get("Decision Tree", {"accuracy": 0.9730, "f1_failure": 0.4255, "roc_auc": 0.9147}),
                 is_available=("Decision Tree" in self._models)
             ),
             "SVM (RBF)": ModelMetadata(
                 model_id="SVM (RBF)",
                 name="Support Vector Machine (RBF Kernel)",
-                family="Classical Kernel",
+                family="Kernel Machine",
                 feature_schema="LabelEncoded_6",
                 expected_features=config.FEATURE_COLS_LABEL_ENCODED,
-                description="Radial basis function SVM with Platt probability calibration.",
-                test_metrics=bench_classical.get("SVM", {"accuracy": 0.9760, "f1_failure": 0.65, "roc_auc": 0.910}),
+                description="Support vector classifier using radial basis kernel with Platt probability calibration.",
+                test_metrics=bench_classical.get("SVM (RBF)", {"accuracy": 0.9710, "f1_failure": 0.2927, "roc_auc": 0.9503}),
                 is_available=("SVM (RBF)" in self._models or "SVM" in self._models)
             ),
             "Logistic Regression": ModelMetadata(
                 model_id="Logistic Regression",
-                name="Logistic Regression (L2 Regularized)",
+                name="Logistic Regression (Linear Baseline)",
                 family="Linear Model",
                 feature_schema="LabelEncoded_6",
                 expected_features=config.FEATURE_COLS_LABEL_ENCODED,
-                description="Linear baseline classifier estimating log-odds of machine failure.",
-                test_metrics=bench_classical.get("Logistic Regression", {"accuracy": 0.9735, "f1_failure": 0.45, "roc_auc": 0.880}),
+                description="Linear generalized classification model with L2 regularization and balanced weights.",
+                test_metrics=bench_classical.get("Logistic Regression", {"accuracy": 0.9680, "f1_failure": 0.2000, "roc_auc": 0.9005}),
                 is_available=("Logistic Regression" in self._models)
             ),
             "1D CNN (PyTorch)": ModelMetadata(
                 model_id="1D CNN (PyTorch)",
                 name="1D Convolutional Neural Network (PyTorch)",
-                family="Deep Learning (Conv1D)",
+                family="Deep Learning (1D CNN)",
                 feature_schema="OneHot_7",
                 expected_features=config.FEATURE_COLS_ONEHOT,
-                description="Multi-scale Conv1D feature extractor with Batch Normalization and Global Pooling.",
-                test_metrics=bench_cnn if bench_cnn else {"accuracy": 0.9660, "f1_failure": 0.564, "roc_auc": 0.980},
+                description="Deep 1D CNN with 2 Conv stages (32, 64 filters), Batch Normalization, and Dropout.",
+                test_metrics=bench_cnn if bench_cnn else {"accuracy": 0.9250, "f1_failure": 0.4526, "roc_auc": 0.9785},
                 is_available=(self._cnn_pytorch_model is not None)
             )
         }
 
+    # ========================================================================
+    # TASK 9 UNIFIED DYNAMIC REGISTRY API
+    # ========================================================================
+
     def list_available_models(self) -> List[ModelMetadata]:
-        """Returns metadata list of all available trained models."""
+        """Returns metadata for all registered models."""
         return list(self._metadata_cache.values())
 
     def get_model_metadata(self, model_id: str) -> Optional[ModelMetadata]:
-        return self._metadata_cache.get(model_id)
+        """Returns ModelMetadata for a given model_id."""
+        # Handle aliases
+        alias_map = {
+            "random_forest": "Random Forest",
+            "gradient_boosting": "Gradient Boosting",
+            "logistic_regression": "Logistic Regression",
+            "cnn_1d": "1D CNN (PyTorch)",
+            "decision_tree": "Decision Tree",
+            "svm": "SVM (RBF)"
+        }
+        key = alias_map.get(model_id, model_id)
+        return self._metadata_cache.get(key)
 
     def is_model_available(self, model_id: str) -> bool:
-        meta = self._metadata_cache.get(model_id)
-        return meta.is_available if meta else False
-
-    def transform_input_for_model(
-        self,
-        model_id: str,
-        input_dict: Dict[str, Any]
-    ) -> np.ndarray:
-        """
-        Transforms validated single machine inputs into the exact numerical format
-        expected by the designated model. Applies persistent scalers without refitting.
-        """
+        """Returns True if the requested model artifact is loaded and ready."""
         meta = self.get_model_metadata(model_id)
+        return meta is not None and meta.is_available
+
+    def validate_input(self, input_dict: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Validates machine input against domain schema."""
+        val = validate_machine_input(input_dict)
+        return val.is_valid, (None if val.is_valid else "; ".join(val.errors))
+
+    def transform_input_for_model(self, model_id: str, input_dict: Dict[str, Any]) -> np.ndarray:
+        """
+        Preprocesses a single machine input using the specific pipeline contract for the selected model.
+        Zero data leakage: Applies saved scalers and encoders without re-fitting.
+        """
+        alias_map = {
+            "random_forest": "Random Forest",
+            "gradient_boosting": "Gradient Boosting",
+            "logistic_regression": "Logistic Regression",
+            "cnn_1d": "1D CNN (PyTorch)"
+        }
+        resolved_id = alias_map.get(model_id, model_id)
+        meta = self.get_model_metadata(resolved_id)
         if meta is None:
-            raise ValueError(f"Unknown model identifier: '{model_id}'")
+            raise KeyError(f"Model ID '{model_id}' not found in registry.")
 
         if meta.feature_schema == "OneHot_7":
-            # 1D CNN pipeline: One-hot encoded Type (Type_L, Type_M), 7 features
-            type_val = str(input_dict.get("Type", "M")).strip().upper()
-            type_l = 1.0 if type_val == "L" else 0.0
-            type_m = 1.0 if type_val == "M" else 0.0
+            # 7-feature One-Hot representation matching config.FEATURE_COLS_ONEHOT
+            type_val = str(input_dict.get("Type", "L")).strip().upper()
+            is_l = 1.0 if type_val == "L" else 0.0
+            is_m = 1.0 if type_val == "M" else 0.0
 
-            raw_df = pd.DataFrame([{
+            raw_row = pd.DataFrame([{
                 "Air temperature [K]": float(input_dict["Air temperature [K]"]),
                 "Process temperature [K]": float(input_dict["Process temperature [K]"]),
                 "Rotational speed [rpm]": float(input_dict["Rotational speed [rpm]"]),
                 "Torque [Nm]": float(input_dict["Torque [Nm]"]),
                 "Tool wear [min]": float(input_dict["Tool wear [min]"]),
-                "Type_L": type_l,
-                "Type_M": type_m
-            }])[config.FEATURE_COLS_ONEHOT]
+                "Type_L": is_l,
+                "Type_M": is_m
+            }])
 
             if self._scaler_cnn is not None:
-                scaled_vec = self._scaler_cnn.transform(raw_df)
-            else:
-                scaled_vec = raw_df.values.astype(np.float32)
-
-            return scaled_vec
+                scaled_arr = self._scaler_cnn.transform(raw_row)
+                return scaled_arr
+            return raw_row.values
 
         else:
-            # Classical ML pipeline: LabelEncoded Type, 6 features
-            type_val = str(input_dict.get("Type", "M")).strip().upper()
-            type_code = 1  # default M
+            # 6-feature LabelEncoded representation
+            type_val = str(input_dict.get("Type", "L")).strip().upper()
             if self._label_encoder is not None:
                 try:
                     type_code = int(self._label_encoder.transform([type_val])[0])
@@ -254,7 +336,6 @@ class ModelRegistry:
                 "Tool wear [min]": float(input_dict["Tool wear [min]"])
             }])
 
-            # Scale numerical columns if classical scaler exists
             if self._scaler_classical is not None:
                 scale_cols = [c for c in config.NUMERICAL_FEATURES if c in raw_df.columns]
                 raw_df[scale_cols] = self._scaler_classical.transform(raw_df[scale_cols])
@@ -270,31 +351,36 @@ class ModelRegistry:
         Executes prediction using the user-selected model.
         Returns formal PredictedFailureRisk object with calibrated probabilities.
         """
-        # Validate inputs first
         val = validate_machine_input(input_dict)
         if not val.is_valid:
             raise ValueError(f"Input validation failed: {'; '.join(val.errors)}")
 
-        meta = self.get_model_metadata(model_id)
+        alias_map = {
+            "random_forest": "Random Forest",
+            "gradient_boosting": "Gradient Boosting",
+            "logistic_regression": "Logistic Regression",
+            "cnn_1d": "1D CNN (PyTorch)"
+        }
+        resolved_id = alias_map.get(model_id, model_id)
+        meta = self.get_model_metadata(resolved_id)
         if meta is None or not meta.is_available:
             raise RuntimeError(f"Requested model '{model_id}' is not loaded or unavailable on disk.")
 
-        if model_id == "1D CNN (PyTorch)":
+        if resolved_id == "1D CNN (PyTorch)":
             import torch
-            x_scaled = self.transform_input_for_model(model_id, input_dict)
-            # Reshape for CNN: (1, 7, 1)
+            x_scaled = self.transform_input_for_model(resolved_id, input_dict)
             x_tensor = torch.tensor(x_scaled.reshape(1, 7, 1), dtype=torch.float32)
             with torch.no_grad():
                 prob = float(self._cnn_pytorch_model(x_tensor).item())
             pred_class = bool(prob >= 0.5)
 
         else:
-            model_key = model_id
+            model_key = resolved_id
             if model_key not in self._models and model_key == "SVM (RBF)" and "SVM" in self._models:
                 model_key = "SVM"
 
             model = self._models[model_key]
-            x_vec = self.transform_input_for_model(model_id, input_dict)
+            x_vec = self.transform_input_for_model(resolved_id, input_dict)
 
             if hasattr(model, "predict_proba"):
                 prob = float(model.predict_proba(x_vec)[0, 1])
@@ -304,7 +390,6 @@ class ModelRegistry:
                 pred_class = bool(pred_raw == 1)
                 prob = 0.95 if pred_class else 0.05
 
-        # Determine confidence descriptor
         if prob >= 0.70:
             confidence = "High Confidence Failure (Statistical Likelihood >= 70%)"
         elif prob >= 0.50:
@@ -322,149 +407,53 @@ class ModelRegistry:
             model_version="v1.0.0"
         )
 
+    # ========================================================================
+    # MACHINEGUARD CORE CATALOG & INFERENCE ENGINE BRIDGE
+    # ========================================================================
 
-# Global registry instance
-registry = ModelRegistry()
-=======
-MachineGuard Model Registry
-Centralized repository for supported Machine Learning and Deep Learning models.
-Manages metadata, artifact resolution, availability validation, preprocessing schemas,
-and unified inference execution across models.
-"""
+    def list_models(
+        self,
+        group_by_type: bool = False,
+        only_available: bool = False
+    ) -> Union[List[str], Dict[str, List[str]]]:
+        """
+        Lists supported models by ID.
+        Supports filtering by availability and grouping by architecture family.
+        """
+        candidates = list(self._catalog.keys())
+        if only_available:
+            candidates = [m for m in candidates if Path(self._catalog[m]["artifact_path"]).exists()]
 
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any, Union
-import config
+        if group_by_type:
+            grouped = {"ML": [], "DL": []}
+            for mid in candidates:
+                m_type = self._catalog[mid]["model_type"]
+                if m_type in grouped:
+                    grouped[m_type].append(mid)
+            return grouped
 
-# Static registry definitions for supported models
-MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
-    "random_forest": {
-        "model_id": "random_forest",
-        "display_name": "Random Forest Classifier",
-        "model_type": "ML",
-        "artifact_path": config.MODELS_DIR / "production_model.joblib",
-        "description": "Ensemble of 100 balanced decision trees. High precision and robustness to multi-sensor outliers.",
-        "prediction_task": "Predicts machine failure probability (0 or 1) from 6 operating telemetry features.",
-        "limitations": "Does not model sequential time-series patterns; predictions are based on instantaneous sensor snapshots.",
-        "operating_threshold": 0.35,
-        "supports_probabilities": True,
-        "explanation_type": "tree_attribution",
-        "explanation_label": "Tree-Path Probability Delta (MDI)",
-        "is_production_default": True
-    },
-    "gradient_boosting": {
-        "model_id": "gradient_boosting",
-        "display_name": "Gradient Boosting Classifier",
-        "model_type": "ML",
-        "artifact_path": config.MODELS_DIR / "gradient_boosting.joblib",
-        "description": "Sequential boosting ensemble of 100 shallow trees optimizing log-loss. Strong discrimination on clear failure regimes.",
-        "prediction_task": "Predicts machine failure probability via stagewise additive decision stumps.",
-        "limitations": "More susceptible to overconfidence on rare anomalous sensor spikes than bagging ensembles.",
-        "operating_threshold": 0.35,
-        "supports_probabilities": True,
-        "explanation_type": "tree_attribution",
-        "explanation_label": "Boosting Stage Leaf Attribution",
-        "is_production_default": False
-    },
-    "logistic_regression": {
-        "model_id": "logistic_regression",
-        "display_name": "Logistic Regression (Balanced)",
-        "model_type": "ML",
-        "artifact_path": config.MODELS_DIR / "logistic_regression.joblib",
-        "description": "Linear classifier with balanced class weighting and L2 regularization. Highly transparent linear log-odds coefficients.",
-        "prediction_task": "Predicts failure log-odds as a linear combination of standardized physical sensor readings.",
-        "limitations": "Cannot capture non-linear sensor coupling (e.g. combined high torque with elevated tool wear).",
-        "operating_threshold": 0.50,
-        "supports_probabilities": True,
-        "explanation_type": "linear_coefficients",
-        "explanation_label": "Linear Feature Log-Odds Contributions",
-        "is_production_default": False
-    },
-    "cnn_1d": {
-        "model_id": "cnn_1d",
-        "display_name": "1D Convolutional Neural Network (CNN)",
-        "model_type": "DL",
-        "artifact_path": config.MODELS_DIR / "cnn_1d.joblib",
-        "description": "Deep 1D CNN with dual Conv1D stages (32 & 64 filters), Batch Normalization, Max Pooling, and Global Average Pooling.",
-        "prediction_task": "Extracts hierarchical filter activations across standardized telemetry features to predict failure probability.",
-        "limitations": "Operates over tabular sensor columns without intrinsic translational invariance. Tree-based attribution is not applicable.",
-        "operating_threshold": 0.50,
-        "supports_probabilities": True,
-        "explanation_type": "conv_activations",
-        "explanation_label": "Conv1D Filter Activation Maps & Sensitivity",
-        "is_production_default": False
-    }
-}
-
-
-class ModelRegistry:
-    """Central registry manager for MachineGuard models."""
-
-    def __init__(self):
-        self._catalog = MODEL_CATALOG
-
-    def list_models(self, group_by_type: bool = False, only_available: bool = False) -> Union[List[str], Dict[str, List[str]]]:
-        """Returns list of model IDs, optionally grouped by 'ML' / 'DL'."""
-        models = []
-        for mid in self._catalog.keys():
-            if only_available:
-                avail, _ = self.is_model_available(mid)
-                if not avail:
-                    continue
-            models.append(mid)
-
-        if not group_by_type:
-            return models
-
-        grouped: Dict[str, List[str]] = {"ML": [], "DL": []}
-        for mid in models:
-            m_type = self._catalog[mid]["model_type"]
-            grouped.setdefault(m_type, []).append(mid)
-        return grouped
+        return candidates
 
     def get_model_info(self, model_id: str) -> Dict[str, Any]:
-        """Returns metadata for a specific model ID."""
+        """
+        Returns catalog metadata descriptor for a given model ID.
+        Raises KeyError with informative message if the model ID is not registered.
+        """
         if model_id not in self._catalog:
             raise KeyError(
-                f"Unknown model identifier '{model_id}'. "
-                f"Available models: {list(self._catalog.keys())}"
+                f"Unknown model identifier '{model_id}'. Supported models: {list(self._catalog.keys())}"
             )
+
         info = dict(self._catalog[model_id])
-        avail, err = self.is_model_available(model_id)
-        info["is_available"] = avail
-        info["load_error"] = err
+        artifact_path = Path(info["artifact_path"])
+        info["is_available"] = artifact_path.exists()
+        info["load_error"] = None if artifact_path.exists() else f"Artifact missing at {artifact_path}"
         return info
 
-    def is_model_available(self, model_id: str) -> Tuple[bool, Optional[str]]:
-        """Verifies if model artifact exists and is loadable."""
-        if model_id not in self._catalog:
-            return False, f"Model ID '{model_id}' is not registered."
-
-        artifact_path = Path(self._catalog[model_id]["artifact_path"])
-        if not artifact_path.exists():
-            return False, f"Artifact file '{artifact_path.name}' not found at '{artifact_path}'."
-
-        return True, None
-
     def get_engine(self, model_id: str):
-        """Loads and returns a cached inference engine for the given model ID."""
+        """Loads and returns an inference engine for the given model ID."""
         from modules import inference
         return inference.get_inference_engine(model_id=model_id)
-
-    def predict(self, model_id: str, input_data: Any, custom_threshold: Optional[float] = None) -> Any:
-        """Unified prediction interface."""
-        engine = self.get_engine(model_id)
-        if isinstance(input_data, dict):
-            return engine.predict_single(input_data, custom_threshold=custom_threshold)
-        else:
-            return engine.predict_batch(input_data, custom_threshold=custom_threshold)
-
-    def predict_probability(self, model_id: str, input_data: Any) -> float:
-        """Returns failure probability for single input record."""
-        res = self.predict(model_id, input_data)
-        if isinstance(res, dict):
-            return float(res["failure_probability"])
-        raise ValueError("predict_probability expects a single record (dictionary).")
 
     def explain_prediction(self, model_id: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Returns model-specific explanation payload."""
@@ -490,13 +479,9 @@ class ModelRegistry:
         input_data: Dict[str, Any],
         custom_thresholds: Optional[Dict[str, float]] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Evaluates the same input record across multiple models.
-        Returns structured comparison table records.
-        """
+        """Evaluates the same input record across multiple models."""
         results = []
         custom_thresholds = custom_thresholds or {}
-
         from modules import decision_layer
 
         for mid in model_ids:
@@ -548,13 +533,12 @@ class ModelRegistry:
 
 
 # Global Registry Singleton
-_registry_instance: Optional[ModelRegistry] = None
+registry = ModelRegistry()
 
 
 def get_model_registry() -> ModelRegistry:
     """Returns singleton ModelRegistry instance."""
-    global _registry_instance
-    if _registry_instance is None:
-        _registry_instance = ModelRegistry()
-    return _registry_instance
->>>>>>> 67c25a8ec6c7c96a556a72bd95d31bda6d5f2cac
+    global registry
+    if registry is None:
+        registry = ModelRegistry()
+    return registry
