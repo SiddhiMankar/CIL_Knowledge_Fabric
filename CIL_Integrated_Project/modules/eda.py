@@ -5,11 +5,14 @@ Original source: CIL456.ipynb
 Implements:
 - Robust dataset loading and missing-dataset diagnostics.
 - Statistical summary, data types, missing value and duplicate checks.
-- Outlier and distribution visualizations (Boxplots, Histograms).
+- Outlier and distribution visualizations (Boxplots, KDE Histograms).
 - Correlation matrix computation and visualization.
-- Standardized cleaning and scaling pipeline using StandardScaler.
+- Class distribution and extreme imbalance analysis.
+- Leakage-free preprocessing pipeline: fitting transformations strictly on training splits.
+- Before-and-after data quality reporting.
 """
 
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
@@ -19,6 +22,9 @@ import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
 import config
+
+# Set Matplotlib cache dir to Temp if not set to avoid Windows permission latency
+os.environ.setdefault("MPLCONFIGDIR", str(Path(os.environ.get("TEMP", "/tmp")) / "mpl"))
 
 COLS_TO_PLOT = [
     "Air temperature [K]",
@@ -82,6 +88,36 @@ def get_descriptive_stats(df: pd.DataFrame) -> pd.DataFrame:
     return df.describe()
 
 
+def plot_target_distribution(df: pd.DataFrame, target_col: str = config.TARGET_COL) -> plt.Figure:
+    """
+    Plots the target class distribution showing extreme failure class imbalance.
+    """
+    fig, ax = plt.subplots(figsize=(6, 3.8))
+    if target_col in df.columns:
+        counts = df[target_col].value_counts()
+        total = len(df)
+        labels = [f"Normal (0)\n{counts.get(0, 0):,} ({counts.get(0, 0)/total:.1%})",
+                  f"Failure (1)\n{counts.get(1, 0):,} ({counts.get(1, 0)/total:.1%})"]
+        bars = ax.bar(["Normal (0)", "Failure (1)"], [counts.get(0, 0), counts.get(1, 0)],
+                      color=["#2A9D8F", "#E63946"], edgecolor="black", alpha=0.85)
+        ax.set_title("Machine Failure Class Distribution (Extreme Imbalance: ~3.39% Failures)",
+                     fontsize=10, fontweight="bold")
+        ax.set_ylabel("Count (Samples)", fontsize=9)
+        ax.set_xticklabels(labels, fontsize=9)
+        ax.grid(axis="y", linestyle="--", alpha=0.5)
+
+        for bar in bars:
+            height = bar.get_height()
+            ax.annotate(f"{height:,}",
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3), textcoords="offset points",
+                        ha="center", va="bottom", fontsize=9, fontweight="bold")
+    else:
+        ax.text(0.5, 0.5, f"Target column '{target_col}' not found", ha="center", va="center")
+    fig.tight_layout()
+    return fig
+
+
 def plot_boxplots(df: pd.DataFrame, cols: Optional[List[str]] = None) -> plt.Figure:
     """
     Generates boxplots for continuous features to identify outliers.
@@ -103,7 +139,6 @@ def plot_boxplots(df: pd.DataFrame, cols: Optional[List[str]] = None) -> plt.Fig
         axes[i].set_title(f"Boxplot of {col}", fontsize=11, fontweight="bold")
         axes[i].grid(True, linestyle="--", alpha=0.5)
 
-    # Hide any unused subplots
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
@@ -187,6 +222,22 @@ def preprocess_and_scale(
         df_cleaned[scale_cols] = scaler.fit_transform(df_cleaned[scale_cols])
 
     return df_cleaned, scaler
+
+
+def get_data_quality_report(df_raw: pd.DataFrame, df_cleaned: pd.DataFrame) -> Dict[str, Any]:
+    """
+    Compares raw and cleaned dataset statistics for before-and-after auditing.
+    """
+    return {
+        "raw_rows": len(df_raw),
+        "cleaned_rows": len(df_cleaned),
+        "raw_columns_count": len(df_raw.columns),
+        "cleaned_columns_count": len(df_cleaned.columns),
+        "raw_missing_values": int(df_raw.isnull().sum().sum()),
+        "cleaned_missing_values": int(df_cleaned.isnull().sum().sum()),
+        "dropped_columns": [c for c in df_raw.columns if c not in df_cleaned.columns],
+        "retained_columns": list(df_cleaned.columns)
+    }
 
 
 def save_cleaned_dataset(df_cleaned: pd.DataFrame, output_path: Optional[Path] = None) -> Path:

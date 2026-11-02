@@ -68,8 +68,9 @@ def test_classical_ml_pipeline_contract(synthetic_test_fixture):
 
     X_train, X_test, y_train, y_test = classical_ml.split_data(X, y, test_size=0.3, stratify=False)
     comp_df, results = classical_ml.train_and_evaluate_all_classifiers(X_train, y_train, X_test, y_test)
-    assert len(comp_df) == 4
+    assert len(comp_df) == 5
     assert "Random Forest" in results
+    assert "Gradient Boosting" in results
 
 
 def test_regression_pipeline_contract(synthetic_test_fixture):

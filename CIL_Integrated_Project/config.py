@@ -5,6 +5,9 @@ import os
 from pathlib import Path
 from typing import Optional, Tuple
 
+# Avoid Matplotlib sandbox permission latency on Windows
+os.environ.setdefault("MPLCONFIGDIR", str(Path(os.environ.get("TEMP", "/tmp")) / "mpl"))
+
 # Base Project Paths
 PROJECT_ROOT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT_ROOT / "data"

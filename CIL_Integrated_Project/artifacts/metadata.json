@@ -1,105 +1,177 @@
 {
-  "project": "CIL Integrated Predictive Maintenance & AI Planning",
-  "tasks": ["Task 3", "Task 4", "Task 5", "Task 6", "Task 7", "Task 8"],
+  "project": "CIL Knowledge Fabric \u2014 MachineGuard Platform",
   "dataset_spec": {
     "filename": "ai4i2020.csv",
-    "rows": 10000,
-    "columns": 14,
-    "target": "Machine failure",
-    "regression_target": "Tool wear [min]"
-  },
-  "task3_planning_benchmarks": {
-    "equipment": "P-101",
-    "fault": "Suspected Bearing Wear",
-    "algorithms": {
-      "BFS": {
-        "solution_found": true,
-        "actions_count": 7,
-        "path_cost": 14,
-        "nodes_expanded": 16,
-        "execution_time_sec": 0.00017
-      },
-      "DFS": {
-        "solution_found": true,
-        "actions_count": 8,
-        "path_cost": 15,
-        "nodes_expanded": 9,
-        "execution_time_sec": 0.00008
-      },
-      "A*": {
-        "solution_found": true,
-        "actions_count": 7,
-        "path_cost": 14,
-        "nodes_expanded": 9,
-        "execution_time_sec": 0.00014
-      }
-    },
-    "optimal_plan": [
-      "Inspect Bearing",
-      "Confirm Bearing Wear",
-      "Replace Bearing",
-      "Run Vibration Test",
-      "Run Temperature Test",
-      "Test Pump",
-      "Restore Pump Operation"
-    ]
+    "total_samples": 10000,
+    "features_count": 14,
+    "train_samples": 8000,
+    "test_samples": 2000,
+    "failure_samples_test": 68,
+    "normal_samples_test": 1932
   },
   "task5_classical_ml_benchmarks": {
     "test_split_ratio": 0.2,
     "models": {
       "Random Forest": {
-        "accuracy": 0.9840,
-        "notes": "Top performing classifier in notebook CIL456"
+        "accuracy": 0.985,
+        "precision_failure": 0.88,
+        "recall_failure": 0.6471,
+        "f1_score": 0.7458,
+        "roc_auc": 0.9645,
+        "pr_auc": 0.8111,
+        "false_negatives": 24,
+        "false_positives": 6,
+        "confusion_matrix": [
+          [
+            1926,
+            6
+          ],
+          [
+            24,
+            44
+          ]
+        ]
+      },
+      "Gradient Boosting": {
+        "accuracy": 0.985,
+        "precision_failure": 0.8654,
+        "recall_failure": 0.6618,
+        "f1_score": 0.75,
+        "roc_auc": 0.9684,
+        "pr_auc": 0.7917,
+        "false_negatives": 23,
+        "false_positives": 7,
+        "confusion_matrix": [
+          [
+            1925,
+            7
+          ],
+          [
+            23,
+            45
+          ]
+        ]
       },
       "Decision Tree": {
-        "accuracy": 0.9790,
-        "max_depth": 5
+        "accuracy": 0.973,
+        "precision_failure": 0.7692,
+        "recall_failure": 0.2941,
+        "f1_score": 0.4255,
+        "roc_auc": 0.9147,
+        "pr_auc": 0.4993,
+        "false_negatives": 48,
+        "false_positives": 6,
+        "confusion_matrix": [
+          [
+            1926,
+            6
+          ],
+          [
+            48,
+            20
+          ]
+        ]
       },
-      "SVM (RBF kernel)": {
-        "accuracy": 0.9760
+      "SVM (RBF)": {
+        "accuracy": 0.971,
+        "precision_failure": 0.8571,
+        "recall_failure": 0.1765,
+        "f1_score": 0.2927,
+        "roc_auc": 0.9503,
+        "pr_auc": 0.6274,
+        "false_negatives": 56,
+        "false_positives": 2,
+        "confusion_matrix": [
+          [
+            1930,
+            2
+          ],
+          [
+            56,
+            12
+          ]
+        ]
       },
       "Logistic Regression": {
-        "accuracy": 0.9735
+        "accuracy": 0.968,
+        "precision_failure": 0.6667,
+        "recall_failure": 0.1176,
+        "f1_score": 0.2,
+        "roc_auc": 0.9005,
+        "pr_auc": 0.4345,
+        "false_negatives": 60,
+        "false_positives": 4,
+        "confusion_matrix": [
+          [
+            1928,
+            4
+          ],
+          [
+            60,
+            8
+          ]
+        ]
       }
-    },
-    "clustering": {
-      "kmeans_clusters": 3,
-      "features": ["Rotational speed [rpm]", "Torque [Nm]"]
     }
   },
   "task6_regression_benchmarks": {
     "model": "Linear Regression",
     "target": "Tool wear [min]",
-    "mse": 1.0554,
-    "r2_score": -0.0015,
-    "observation": "R2 near zero indicates tool wear cannot be linearly predicted from instantaneous operating conditions alone."
+    "mse": 1.0073,
+    "rmse": 1.0036,
+    "mae": 0.8664,
+    "r2_score": -0.0009,
+    "coefficients": {
+      "Type": -0.0089,
+      "Air temperature [K]": -0.0037,
+      "Process temperature [K]": 0.0157,
+      "Rotational speed [rpm]": -0.0193,
+      "Torque [Nm]": -0.0247
+    },
+    "intercept": 0.0106,
+    "observation": "R2 near zero confirms instantaneous telemetry alone does not linearly correlate with cumulative wear."
   },
   "task7_cnn_benchmarks": {
     "architecture": "1D CNN (Conv1D 32 -> BatchNorm -> MaxPool -> Conv1D 64 -> BatchNorm -> GlobalAvgPool -> Dense 64 -> Dropout 0.5 -> Dense 1)",
     "cnn_metrics": {
-      "accuracy": 0.966,
-      "precision": 0.500,
-      "recall": 0.647,
-      "f1_score": 0.564,
-      "roc_auc": 0.980,
-      "pr_auc": 0.580
+      "accuracy": 0.925,
+      "precision_failure": 0.301,
+      "recall_failure": 0.9118,
+      "f1_score": 0.4526,
+      "roc_auc": 0.9785,
+      "pr_auc": 0.7288,
+      "confusion_matrix": [
+        [
+          1788,
+          144
+        ],
+        [
+          6,
+          62
+        ]
+      ],
+      "false_positives": 144,
+      "false_negatives": 6
     },
     "baseline_logistic_regression_metrics": {
-      "accuracy": 0.824,
-      "precision": 0.142,
-      "recall": 0.824,
-      "f1_score": 0.242,
-      "roc_auc": 0.900,
-      "pr_auc": 0.450
-    }
-  },
-  "task8_interpretability_benchmarks": {
-    "methods": ["Conv1D Layer Activation Maps", "LIME Tabular Explainer"],
-    "diagnostic_cases": {
-      "TN": {"index": 1, "actual": 0, "predicted": 0, "probability": 0.0000, "label": "True Negative (Normal)"},
-      "TP": {"index": 21, "actual": 1, "predicted": 1, "probability": 0.9999, "label": "True Positive (Failure)"},
-      "FP": {"index": 0, "actual": 0, "predicted": 1, "probability": 0.6847, "label": "False Positive"},
-      "FN": {"index": 17, "actual": 1, "predicted": 0, "probability": 0.0316, "label": "False Negative"}
+      "accuracy": 0.968,
+      "precision_failure": 0.6667,
+      "recall_failure": 0.1176,
+      "f1_score": 0.2,
+      "roc_auc": 0.9005,
+      "pr_auc": 0.4345,
+      "false_negatives": 60,
+      "false_positives": 4,
+      "confusion_matrix": [
+        [
+          1928,
+          4
+        ],
+        [
+          60,
+          8
+        ]
+      ]
     }
   }
 }

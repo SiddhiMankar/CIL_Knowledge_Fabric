@@ -431,3 +431,40 @@ def run_all_algorithms(
 def format_state_for_display(state: Tuple[bool, ...]) -> Dict[str, bool]:
     """Converts a boolean state tuple into a human-readable dictionary."""
     return {name: state[i] for i, name in enumerate(STATE_VARIABLES)}
+
+
+def get_planning_scenario_for_recommendation(action_code: str) -> Dict[str, Any]:
+    """
+    Bridges rule-based inference recommendations (Task 2) to AI state-space planning (Task 3).
+    Constructs an appropriate initial state and repair objective based on recommended maintenance action.
+    """
+    if action_code in ["URGENT_INSPECTION", "REPLACE_TOOL_OVERSTRAIN"]:
+        # Complete overhaul: bearing replacement and full requalification required
+        init_state = DEFAULT_INITIAL_STATE
+        goal_state = DEFAULT_GOAL_STATE
+        desc = "Emergency repair sequence: full inspection, mechanical overhaul, vibration/temperature requalification."
+    elif action_code in ["CHECK_LUBRICATION", "INSPECT_COOLING"]:
+        # Lubrication / thermal check: bearing already inspected and worn confirmed
+        init_state = (True, False, False, False, False, False, False, False)
+        goal_state = DEFAULT_GOAL_STATE
+        desc = "Preventative service: spindle inspection, lubrication/thermal verification, and requalification."
+    elif action_code in ["REPLACE_TOOL_WEAR", "SCHEDULED_MAINTENANCE"]:
+        # Tool wear replacement scenario
+        init_state = (True, True, False, False, False, False, False, False)
+        goal_state = DEFAULT_GOAL_STATE
+        desc = "Scheduled replacement: execute mechanical swap, post-replacement tests, and operational restore."
+    else:
+        # Default baseline check
+        init_state = DEFAULT_INITIAL_STATE
+        goal_state = DEFAULT_GOAL_STATE
+        desc = "Standard verification sequence for industrial machinery."
+
+    plan_result = astar(initial_state=init_state, goal_state=goal_state)
+    return {
+        "action_code": action_code,
+        "description": desc,
+        "initial_state": init_state,
+        "goal_state": goal_state,
+        "optimal_plan": plan_result
+    }
+

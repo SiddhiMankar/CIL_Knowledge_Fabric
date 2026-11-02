@@ -1,0 +1,87 @@
+[
+  {
+    "Type": "M",
+    "Air temperature [K]": 298.1,
+    "Process temperature [K]": 308.6,
+    "Rotational speed [rpm]": 1551.0,
+    "Torque [Nm]": 42.8,
+    "Tool wear [min]": 0.0,
+    "model_name": "Random Forest",
+    "failure_probability": 0.0,
+    "recommendation_action": "ROUTINE_MONITORING",
+    "is_safe_to_operate": true,
+    "fired_rules": [
+      "RULE_STAT_LOW_01"
+    ],
+    "timestamp": "2026-11-02T22:25:34.959706",
+    "id": "ASM-0001"
+  },
+  {
+    "Type": "M",
+    "Air temperature [K]": 298.1,
+    "Process temperature [K]": 308.6,
+    "Rotational speed [rpm]": 1551.0,
+    "Torque [Nm]": 42.8,
+    "Tool wear [min]": 0.0,
+    "model_name": "Random Forest",
+    "failure_probability": 0.0,
+    "recommendation_action": "ROUTINE_MONITORING",
+    "is_safe_to_operate": true,
+    "fired_rules": [
+      "RULE_STAT_LOW_01"
+    ],
+    "timestamp": "2026-11-02T22:26:14.364086",
+    "id": "ASM-0002"
+  },
+  {
+    "Type": "M",
+    "Air temperature [K]": 298.1,
+    "Process temperature [K]": 308.6,
+    "Rotational speed [rpm]": 1551.0,
+    "Torque [Nm]": 42.8,
+    "Tool wear [min]": 0.0,
+    "model_name": "Random Forest",
+    "failure_probability": 0.0,
+    "recommendation_action": "ROUTINE_MONITORING",
+    "is_safe_to_operate": true,
+    "fired_rules": [
+      "RULE_STAT_LOW_01"
+    ],
+    "timestamp": "2026-11-02T22:28:40.230738",
+    "id": "ASM-0003"
+  },
+  {
+    "Type": "M",
+    "Air temperature [K]": 298.1,
+    "Process temperature [K]": 308.6,
+    "Rotational speed [rpm]": 1551.0,
+    "Torque [Nm]": 42.8,
+    "Tool wear [min]": 0.0,
+    "model_name": "Random Forest",
+    "failure_probability": 0.0,
+    "recommendation_action": "ROUTINE_MONITORING",
+    "is_safe_to_operate": true,
+    "fired_rules": [
+      "RULE_STAT_LOW_01"
+    ],
+    "timestamp": "2026-11-02T22:38:59.208079",
+    "id": "ASM-0004"
+  },
+  {
+    "Type": "M",
+    "Air temperature [K]": 298.1,
+    "Process temperature [K]": 308.6,
+    "Rotational speed [rpm]": 1551.0,
+    "Torque [Nm]": 42.8,
+    "Tool wear [min]": 0.0,
+    "model_name": "Random Forest",
+    "failure_probability": 0.0,
+    "recommendation_action": "ROUTINE_MONITORING",
+    "is_safe_to_operate": true,
+    "fired_rules": [
+      "RULE_STAT_LOW_01"
+    ],
+    "timestamp": "2026-11-02T22:47:43.755467",
+    "id": "ASM-0005"
+  }
+]
